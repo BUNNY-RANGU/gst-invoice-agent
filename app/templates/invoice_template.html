@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {{ invoice_number }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 40px;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #2563eb;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .header .company-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        
+        .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .info-box {
+            width: 48%;
+        }
+        
+        .info-box h3 {
+            color: #2563eb;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 5px;
+        }
+        
+        .info-box p {
+            font-size: 13px;
+            line-height: 1.6;
+            margin: 5px 0;
+        }
+        
+        .info-box .label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .invoice-details {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .invoice-details p {
+            font-size: 13px;
+            margin: 5px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+        
+        table thead {
+            background: #2563eb;
+            color: white;
+        }
+        
+        table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        table tbody tr:hover {
+            background: #f9fafb;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .totals-section {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .totals-table {
+            width: 350px;
+            border: 2px solid #e5e7eb;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .totals-table table {
+            margin: 0;
+        }
+        
+        .totals-table td {
+            padding: 8px 15px;
+            border: none;
+        }
+        
+        .totals-table .total-row {
+            background: #2563eb;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .subtotal-row {
+            background: #f3f4f6;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+        }
+        
+        .footer h4 {
+            color: #2563eb;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .footer p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #666;
+        }
+        
+        .signature-section {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .signature-box {
+            text-align: center;
+            padding-top: 50px;
+            border-top: 1px solid #333;
+            width: 200px;
+        }
+        
+        .signature-box p {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 100px;
+            color: rgba(0, 0, 0, 0.03);
+            z-index: -1;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark">{{ status }}</div>
+    
+    <div class="header">
+        <div class="company-name">{{ company.name }}</div>
+        <h1>TAX INVOICE</h1>
+        <p style="font-size: 12px; color: #666; margin-top: 5px;">
+            {{ company.address }} | Phone: {{ company.phone }} | Email: {{ company.email }}
+        </p>
+        <p style="font-size: 12px; color: #666;">
+            <strong>GSTIN:</strong> {{ company.gst_number }}
+        </p>
+    </div>
+    
+    <div class="invoice-details">
+        <p><span class="label">Invoice Number:</span> {{ invoice_number }}</p>
+        <p><span class="label">Date:</span> {{ date }}</p>
+        <p><span class="label">Time:</span> {{ time }}</p>
+    </div>
+    
+    <div class="invoice-info">
+        <div class="info-box">
+            <h3>Bill To</h3>
+            <p><strong>{{ customer.name }}</strong></p>
+            <p>Phone: {{ customer.phone }}</p>
+            {% if customer.email %}
+            <p>Email: {{ customer.email }}</p>
+            {% endif %}
+            {% if customer.address %}
+            <p>{{ customer.address }}</p>
+            {% endif %}
+            {% if customer.gst_number %}
+            <p><strong>GSTIN:</strong> {{ customer.gst_number }}</p>
+            {% endif %}
+            <p><strong>State:</strong> {{ customer.state }}</p>
+        </div>
+        
+        <div class="info-box">
+            <h3>Payment Details</h3>
+            <p><span class="label">Status:</span> {{ payment_status }}</p>
+            {% if payment_method %}
+            <p><span class="label">Method:</span> {{ payment_method }}</p>
+            {% endif %}
+            <p><span class="label">Invoice Status:</span> {{ status }}</p>
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 35%;">Item Description</th>
+                <th style="width: 10%;" class="text-right">Qty</th>
+                <th style="width: 12%;" class="text-right">Unit Price</th>
+                <th style="width: 10%;" class="text-right">GST %</th>
+                <th style="width: 13%;" class="text-right">GST Amount</th>
+                <th style="width: 15%;" class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                    <strong>{{ item.name }}</strong>
+                    {% if item.description %}
+                    <br><small style="color: #666;">{{ item.description }}</small>
+                    {% endif %}
+                    {% if item.hsn_code %}
+                    <br><small style="color: #666;">HSN: {{ item.hsn_code }}</small>
+                    {% endif %}
+                </td>
+                <td class="text-right">{{ item.quantity }}</td>
+                <td class="text-right">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                <td class="text-right">{{ item.gst_rate }}%</td>
+                <td class="text-right">₹{{ "%.2f"|format(item.total_gst) }}</td>
+                <td class="text-right"><strong>₹{{ "%.2f"|format(item.total_amount) }}</strong></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="totals-section">
+        <div class="totals-table">
+            <table>
+                <tr class="subtotal-row">
+                    <td>Subtotal:</td>
+                    <td class="text-right">₹{{ "%.2f"|format(totals.subtotal) }}</td>
+                </tr>
+                <tr>
+                    <td>CGST:</td>
+                    <td class="text-right">₹{{ "%.2f"|format(totals.total_cgst) }}</td>
+                </tr>
+                <tr>
+                    <td>SGST:</td>
+                    <td class="text-right">₹{{ "%.2f"|format(totals.total_sgst) }}</td>
+                </tr>
+                <tr class="subtotal-row">
+                    <td>Total GST:</td>
+                    <td class="text-right">₹{{ "%.2f"|format(totals.total_gst) }}</td>
+                </tr>
+                <tr class="total-row">
+                    <td>GRAND TOTAL:</td>
+                    <td class="text-right">₹{{ "%.2f"|format(totals.grand_total) }}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <h4>Terms & Conditions:</h4>
+        <p>
+            1. Payment is due within 30 days of invoice date.<br>
+            2. Please make cheques payable to "{{ company.name }}".<br>
+            3. Interest will be charged at 2% per month on overdue accounts.<br>
+            4. Goods once sold will not be taken back or exchanged.
+        </p>
+        
+        {% if notes %}
+        <h4 style="margin-top: 20px;">Additional Notes:</h4>
+        <p>{{ notes }}</p>
+        {% endif %}
+    </div>
+    
+    <div class="signature-section">
+        <div class="signature-box">
+            <p><strong>Customer Signature</strong></p>
+        </div>
+        <div class="signature-box">
+            <p><strong>Authorized Signatory</strong><br>{{ company.name }}</p>
+        </div>
+    </div>
+    
+    <p style="text-align: center; margin-top: 30px; font-size: 11px; color: #999;">
+        This is a computer-generated invoice and does not require a signature.
+    </p>
+</body>
+</html>
