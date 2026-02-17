@@ -133,6 +133,24 @@ class Payment(Base):
 # Database connection setup
 DATABASE_URL = "sqlite:///./gst_invoices.db"
 
+class User(Base):
+    """User model for authentication"""
+    __tablename__ = 'users'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(100), unique=True, nullable=False)
+    hashed_password = Column(String(200), nullable=False)
+    full_name = Column(String(100))
+    is_active = Column(String(10), default="true")
+    role = Column(String(20), default="user")  # admin, user
+    
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    def __repr__(self):
+        return f"<User(username='{self.username}', role='{self.role}')>"
+
 # Create engine
 engine = create_engine(
     DATABASE_URL,
