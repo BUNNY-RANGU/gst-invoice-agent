@@ -13,6 +13,16 @@ import plotly.graph_objects as go
 from datetime import datetime
 import json
 
+
+# Session state for authentication
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'token' not in st.session_state:
+    st.session_state.token = None
+if 'username' not in st.session_state:
+    st.session_state.username = None
+if 'user_role' not in st.session_state:
+    st.session_state.user_role = None
 # Page config
 st.set_page_config(
     page_title="GST Invoice Agent",
@@ -52,6 +62,88 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ========================
+# LOGIN PAGE              ← YOUR PASTED CODE STARTS HERE
+# ========================
+
+def show_login_page():
+    st.markdown('<h1 class="main-header">🔐 GST Invoice Agent</h1>', unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["🔑 Login", "📝 Register"])
+    
+    with tab1:
+        st.subheader("Login to your account")
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter username")
+            password = st.text_input("Password", type="password", placeholder="Enter password")
+            login_btn = st.form_submit_button("🔑 Login", use_container_width=True)
+            
+            if login_btn:
+                if not username or not password:
+                    st.error("Please enter username and password!")
+                else:
+                    with st.spinner("Logging in..."):
+                        try:
+                            response = requests.post(
+                                f"{API_URL}/api/auth/login",
+                                json={
+                                    "username": username,
+                                    "password": password
+                                }
+                            )
+                            if response.status_code == 200:
+                                data = response.json()
+                                st.session_state.logged_in = True
+                                st.session_state.token = data['access_token']
+                                st.session_state.username = data['user']['username']
+                                st.session_state.user_role = data['user']['role']
+                                st.success(f"✅ {data['message']}")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ {response.json().get('detail', 'Login failed')}")
+                        except Exception as e:
+                            st.error(f"❌ API Offline! Start the API server first!")
+    
+    with tab2:
+        st.subheader("Create new account")
+        with st.form("register_form"):
+            reg_username = st.text_input("Username*", placeholder="Choose username")
+            reg_fullname = st.text_input("Full Name", placeholder="Your full name")
+            reg_email = st.text_input("Email*", placeholder="your@email.com")
+            reg_password = st.text_input("Password*", type="password", placeholder="Min 8 characters")
+            reg_confirm = st.text_input("Confirm Password*", type="password", placeholder="Repeat password")
+            register_btn = st.form_submit_button("📝 Register", use_container_width=True)
+            
+            if register_btn:
+                if not reg_username or not reg_email or not reg_password:
+                    st.error("Please fill all required fields!")
+                elif reg_password != reg_confirm:
+                    st.error("Passwords don't match!")
+                elif len(reg_password) < 8:
+                    st.error("Password must be at least 8 characters!")
+                else:
+                    with st.spinner("Creating account..."):
+                        try:
+                            response = requests.post(
+                                f"{API_URL}/api/auth/register",
+                                json={
+                                    "username": reg_username,
+                                    "email": reg_email,
+                                    "password": reg_password,
+                                    "full_name": reg_fullname
+                                }
+                            )
+                            if response.status_code == 200:
+                                st.success("✅ Account created! Please login.")
+                            else:
+                                st.error(f"❌ {response.json().get('detail', 'Registration failed')}")
+                        except Exception as e:
+                            st.error(f"❌ API Offline! Start the API server first!")
+
+# Check if logged in
+if not st.session_state.logged_in:
+    show_login_page()
+    st.stop()
 
 # Sidebar Navigation
 st.sidebar.title("🧾 GST Invoice Agent")

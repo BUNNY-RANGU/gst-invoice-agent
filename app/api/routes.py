@@ -5,6 +5,9 @@ Author: Bunny Rangu
 Day: 4/30
 """
 
+from app.agents.auth_agent import AuthAgent
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends
 from app.agents.email_agent import EmailAgent
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
@@ -35,9 +38,14 @@ app = FastAPI(
     }
 )
 # Initialize PDF Generator
+# Initialize PDF Generator
 pdf_generator = PDFGenerator()
 email_agent = EmailAgent()
 excel_exporter = ExcelExporter()
+
+# Initialize Auth Agent
+auth_agent = AuthAgent()
+security = HTTPBearer()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -50,7 +58,23 @@ app.add_middleware(
 # ============================================================================
 # PYDANTIC MODELS (Data Validation)
 # ============================================================================
+# ============================================================================
+# AUTH HELPER
+# ============================================================================
 
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get current logged in user from JWT token"""
+    token = credentials.credentials
+    user = auth_agent.get_current_user(token)
+    
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token. Please login again."
+        )
+    
+    return user
+    
 class CustomerModel(BaseModel):
     """Customer details model"""
     name: str = Field(..., min_length=2, max_length=100, description="Customer name")
@@ -126,6 +150,19 @@ class InvoiceCreateRequest(BaseModel):
                 "notes": "Thank you for your business!"
             }
         }
+
+
+class UserRegisterRequest(BaseModel):
+    """Request model for user registration"""
+    username: str = Field(..., min_length=2, max_length=50)
+    email: str = Field(..., description="User email")
+    password: str = Field(..., min_length=8)
+    full_name: Optional[str] = ""
+
+class UserLoginRequest(BaseModel):
+    """Request model for user login"""
+    username: str
+    password: str
 
 
 # ============================================================================
@@ -608,7 +645,69 @@ async def export_customer_spending_report():
             detail=f"Export failed: {str(e)}"
         )
 
+# ============================================================================
+# AUTH ENDPOINTS
+# ============================================================================
 
+@app.post("/api/auth/register", tags=["Authentication"])
+async def register(request: UserRegisterRequest):
+    """
+    Register a new user
+    
+    - Creates new account
+    - Hashes password securely using SHA-256 + bcrypt
+    - Returns user details
+    - Supports passwords of any length
+    """
+    result = auth_agent.register_user(
+        username=request.username,
+        email=request.email,
+        password=request.password,
+        full_name=request.full_name
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=400,
+            detail=result['error']
+        )
+    
+    return result
+
+
+@app.post("/api/auth/login", tags=["Authentication"])
+async def login(request: UserLoginRequest):
+    """
+    Login with username and password
+    
+    - Returns JWT access token
+    - Token valid for 24 hours
+    - Use token in Authorization header
+    - Supports passwords of any length
+    """
+    result = auth_agent.login_user(request.username, request.password)
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=401,
+            detail=result['error']
+        )
+    
+    return result
+
+
+@app.get("/api/auth/me", tags=["Authentication"])
+async def get_me(current_user: dict = Depends(get_current_user)):
+    """
+    Get current logged in user details
+    
+    - Requires valid JWT token
+    - Returns user profile
+    """
+    return {
+        "success": True,
+        "user": current_user
+    }
 # ============================================================================
 # RUN SERVER
 # ============================================================================

@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 import sys
 import os
+import hashlib
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
@@ -29,13 +30,53 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class AuthAgent:
     """Handle all authentication operations"""
     
+    @staticmethod
+    def _hash_password_sha256(password: str) -> str:
+        """Pre-hash password using SHA-256 to support any length
+        
+        This converts passwords of any length to a fixed 64-character string,
+        which is safe for bcrypt (72-byte limit).
+        
+        Args:
+            password: Plain text password
+            
+        Returns:
+            SHA-256 hashed password (64 character hex string)
+        """
+        return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    
     def hash_password(self, password: str) -> str:
-        """Hash a password"""
-        return pwd_context.hash(password)
+        """Hash a password using SHA-256 + direct bcrypt
+        
+        Supports passwords of any length by first hashing with SHA-256,
+        then applying bcrypt for secure storage.
+        """
+        import bcrypt
+        # First, hash with SHA-256 (generates 64-char string)
+        sha256_hash = self._hash_password_sha256(password)
+        # Then apply bcrypt on the SHA-256 hash
+        # We need to encode the string to bytes for bcrypt
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(sha256_hash.encode('utf-8'), salt)
+        # Return as string for database storage
+        return hashed.decode('utf-8')
     
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """Verify password against hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        """Verify password against hash using direct bcrypt
+        
+        Supports passwords of any length by using the same SHA-256 + bcrypt approach.
+        """
+        import bcrypt
+        try:
+            # First, hash with SHA-256 to match the stored hash format
+            sha256_hash = self._hash_password_sha256(plain_password)
+            # Then verify against the bcrypt hash
+            return bcrypt.checkpw(
+                sha256_hash.encode('utf-8'), 
+                hashed_password.encode('utf-8')
+            )
+        except Exception:
+            return False
     
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """
