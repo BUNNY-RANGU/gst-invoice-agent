@@ -17,6 +17,7 @@ from app.agents.search_agent import SearchAgent
 from datetime import datetime
 from app.agents.bulk_operations import BulkOperations
 from fastapi import UploadFile, File
+from app.agents.notification_agent import NotificationAgent
 import sys
 import os
 from fastapi.responses import Response
@@ -47,6 +48,8 @@ email_agent = EmailAgent()
 excel_exporter = ExcelExporter()
 # Initialize Analytics Agent
 analytics_agent = AnalyticsAgent()
+# Initialize Notification Agent
+notification_agent = NotificationAgent()
 # Initialize Bulk Operations
 bulk_ops = BulkOperations()
 # Initialize Search Agent
@@ -732,7 +735,267 @@ async def get_gst_rate_breakdown():
         "success": True,
         **breakdown
     }
+     
 
+     # ============================================================================
+# NOTIFICATION ENDPOINTS
+# ============================================================================
+
+@app.post("/api/notifications/payment-reminder", tags=["Notifications"])
+async def send_payment_reminder_email(
+    invoice_number: str,
+    from_email: str,
+    from_password: str
+):
+    """
+    Send payment reminder for a specific invoice
+    
+    - Sends professional reminder email to customer
+    - Requires Gmail App Password
+    """
+    # Get invoice
+    invoice = agent.get_invoice(invoice_number)
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {invoice_number} not found"
+        )
+    
+    # Check if customer has email
+    if not invoice['customer'].get('email'):
+        raise HTTPException(
+            status_code=400,
+            detail="Customer email not available"
+        )
+    
+    # Company info (you can make this configurable)
+    company_info = {
+        'name': 'AI Tax Solutions',
+        'email': 'support@aitaxsolutions.com',
+        'phone': '+91 9876543210'
+    }
+    
+    email_config = {
+        'from_email': from_email,
+        'password': from_password
+    }
+    
+    # Send reminder
+    result = notification_agent.send_payment_reminder(
+        invoice_data=invoice,
+        company_info=company_info,
+        email_config=email_config
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send reminder: {result['error']}"
+        )
+    
+    return {
+        "success": True,
+        "message": result['message'],
+        "invoice_number": invoice_number,
+        "sent_to": invoice['customer']['email']
+    }
+
+
+@app.post("/api/notifications/overdue-alert", tags=["Notifications"])
+async def send_overdue_alert_email(
+    invoice_number: str,
+    from_email: str,
+    from_password: str
+):
+    """
+    Send overdue alert for a specific invoice
+    
+    - Sends urgent overdue notice to customer
+    - Calculates days overdue automatically
+    """
+    # Get invoice
+    invoice = agent.get_invoice(invoice_number)
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {invoice_number} not found"
+        )
+    
+    # Check if customer has email
+    if not invoice['customer'].get('email'):
+        raise HTTPException(
+            status_code=400,
+            detail="Customer email not available"
+        )
+    
+    # Calculate days overdue
+    if invoice.get('due_date'):
+        due_date = datetime.strptime(invoice['due_date'], "%Y-%m-%d")
+        days_overdue = (datetime.now() - due_date).days
+    else:
+        days_overdue = 0
+    
+    # Company info
+    company_info = {
+        'name': 'AI Tax Solutions',
+        'email': 'support@aitaxsolutions.com',
+        'phone': '+91 9876543210'
+    }
+    
+    email_config = {
+        'from_email': from_email,
+        'password': from_password
+    }
+    
+    # Send alert
+    result = notification_agent.send_overdue_alert(
+        invoice_data=invoice,
+        days_overdue=days_overdue,
+        company_info=company_info,
+        email_config=email_config
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send alert: {result['error']}"
+        )
+    
+    return {
+        "success": True,
+        "message": result['message'],
+        "invoice_number": invoice_number,
+        "days_overdue": days_overdue,
+        "sent_to": invoice['customer']['email']
+    }
+
+
+@app.post("/api/notifications/payment-confirmation", tags=["Notifications"])
+async def send_payment_confirmation_email(
+    invoice_number: str,
+    payment_id: int,
+    from_email: str,
+    from_password: str
+):
+    """
+    Send payment received confirmation
+    
+    - Sends thank you email with payment details
+    - Confirms payment receipt
+    """
+    # Get invoice
+    invoice = agent.get_invoice(invoice_number)
+    
+    if not invoice:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Invoice {invoice_number} not found"
+        )
+    
+    # Check if customer has email
+    if not invoice['customer'].get('email'):
+        raise HTTPException(
+            status_code=400,
+            detail="Customer email not available"
+        )
+    
+    # Get payment details
+    payments = agent.get_payment_history(invoice_number)
+    payment = next((p for p in payments if p['id'] == payment_id), None)
+    
+    if not payment:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Payment {payment_id} not found"
+        )
+    
+    # Company info
+    company_info = {
+        'name': 'AI Tax Solutions',
+        'email': 'support@aitaxsolutions.com',
+        'phone': '+91 9876543210'
+    }
+    
+    email_config = {
+        'from_email': from_email,
+        'password': from_password
+    }
+    
+    # Send confirmation
+    result = notification_agent.send_payment_confirmation(
+        invoice_data=invoice,
+        payment_data=payment,
+        company_info=company_info,
+        email_config=email_config
+    )
+    
+    if not result['success']:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send confirmation: {result['error']}"
+        )
+    
+    return {
+        "success": True,
+        "message": result['message'],
+        "invoice_number": invoice_number,
+        "sent_to": invoice['customer']['email']
+    }
+
+
+@app.get("/api/notifications/pending-reminders", tags=["Notifications"])
+async def get_pending_reminders():
+    """
+    Get list of invoices that need payment reminders
+    
+    - Returns unpaid/partial invoices
+    - Filters invoices with customer emails
+    """
+    all_invoices = agent.get_all_invoices()
+    
+    # Filter pending/partial invoices with emails
+    pending = [
+        inv for inv in all_invoices
+        if inv['payment_status'] in ['Pending', 'Partial']
+        and inv['customer'].get('email')
+    ]
+    
+    return {
+        "success": True,
+        "count": len(pending),
+        "invoices": pending
+    }
+
+
+@app.get("/api/notifications/overdue-invoices", tags=["Notifications"])
+async def get_overdue_invoices():
+    """
+    Get list of overdue invoices
+    
+    - Returns invoices past due date
+    - Calculates days overdue
+    """
+    all_invoices = agent.get_all_invoices()
+    today = datetime.now().date()
+    
+    overdue = []
+    for inv in all_invoices:
+        if inv['payment_status'] in ['Pending', 'Partial']:
+            if inv.get('due_date'):
+                due_date = datetime.strptime(inv['due_date'], "%Y-%m-%d").date()
+                if today > due_date:
+                    days_overdue = (today - due_date).days
+                    inv['days_overdue'] = days_overdue
+                    overdue.append(inv)
+    
+    return {
+        "success": True,
+        "count": len(overdue),
+        "total_overdue_amount": sum(inv['totals']['grand_total'] for inv in overdue),
+        "invoices": overdue
+    }
 # ============================================================================
 # ADVANCED SEARCH ENDPOINTS
 # ============================================================================

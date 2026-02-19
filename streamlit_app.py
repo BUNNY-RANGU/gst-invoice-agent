@@ -151,7 +151,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "ℹ️ About"]
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "ℹ️ About"]
 )
 
 st.sidebar.markdown("---")
@@ -890,6 +890,208 @@ elif page == "📈 Analytics":
                 st.info("No data yet")
     except Exception as e:
         st.error(f"Error: {e}")
+
+
+        # ====================
+# PAGE 7: NOTIFICATIONS
+# ====================
+elif page == "🔔 Notifications":
+    st.markdown('<h1 class="main-header">🔔 Automated Notifications</h1>', unsafe_allow_html=True)
+    
+    st.info("💡 Send automated payment reminders and alerts to customers")
+    
+    # Email configuration
+    with st.expander("⚙️ Email Settings", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            sender_email = st.text_input("Your Gmail", placeholder="your@gmail.com", key="notif_sender")
+        with col2:
+            sender_password = st.text_input("Gmail App Password", type="password", key="notif_password")
+        
+        st.warning("⚠️ Use Gmail App Password, not your regular password!")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["📧 Payment Reminders", "⚠️ Overdue Alerts", "✅ Confirmations", "📊 Dashboard"])
+    
+    # Tab 1: Payment Reminders
+    with tab1:
+        st.subheader("📧 Send Payment Reminders")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/notifications/pending-reminders")
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['count'] > 0:
+                    st.info(f"📊 {data['count']} pending invoices with email addresses")
+                    
+                    for inv in data['invoices']:
+                        with st.expander(f"🧾 {inv['invoice_number']} - {inv['customer']['name']} - ₹{inv['totals']['grand_total']:,.2f}"):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.write(f"**Customer:** {inv['customer']['name']}")
+                                st.write(f"**Email:** {inv['customer']['email']}")
+                                st.write(f"**Amount Due:** ₹{inv['totals']['grand_total']:,.2f}")
+                                st.write(f"**Status:** {inv['payment_status']}")
+                            
+                            with col2:
+                                if st.button("📧 Send Reminder", key=f"reminder_{inv['invoice_number']}", use_container_width=True):
+                                    if not sender_email or not sender_password:
+                                        st.error("Please enter email settings above!")
+                                    else:
+                                        with st.spinner("Sending..."):
+                                            try:
+                                                reminder_response = requests.post(
+                                                    f"{API_URL}/api/notifications/payment-reminder",
+                                                    params={
+                                                        "invoice_number": inv['invoice_number'],
+                                                        "from_email": sender_email,
+                                                        "from_password": sender_password
+                                                    }
+                                                )
+                                                
+                                                if reminder_response.status_code == 200:
+                                                    st.success("✅ Reminder sent!")
+                                                else:
+                                                    st.error(f"❌ {reminder_response.json().get('detail', 'Failed')}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {e}")
+                else:
+                    st.success("✅ No pending invoices - all paid!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 2: Overdue Alerts
+    with tab2:
+        st.subheader("⚠️ Send Overdue Alerts")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/notifications/overdue-invoices")
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['count'] > 0:
+                    st.warning(f"⚠️ {data['count']} overdue invoices - Total: ₹{data['total_overdue_amount']:,.2f}")
+                    
+                    for inv in data['invoices']:
+                        status_icon = "🔴" if inv['days_overdue'] > 30 else "🟡"
+                        with st.expander(f"{status_icon} {inv['invoice_number']} - {inv['days_overdue']} days overdue - ₹{inv['totals']['grand_total']:,.2f}"):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.write(f"**Customer:** {inv['customer']['name']}")
+                                st.write(f"**Email:** {inv['customer'].get('email', 'No email')}")
+                                st.write(f"**Amount Due:** ₹{inv['totals']['grand_total']:,.2f}")
+                                st.write(f"**Days Overdue:** {inv['days_overdue']} days")
+                            
+                            with col2:
+                                if inv['customer'].get('email'):
+                                    if st.button("⚠️ Send Alert", key=f"alert_{inv['invoice_number']}", use_container_width=True):
+                                        if not sender_email or not sender_password:
+                                            st.error("Please enter email settings above!")
+                                        else:
+                                            with st.spinner("Sending..."):
+                                                try:
+                                                    alert_response = requests.post(
+                                                        f"{API_URL}/api/notifications/overdue-alert",
+                                                        params={
+                                                            "invoice_number": inv['invoice_number'],
+                                                            "from_email": sender_email,
+                                                            "from_password": sender_password
+                                                        }
+                                                    )
+                                                    
+                                                    if alert_response.status_code == 200:
+                                                        st.success("✅ Alert sent!")
+                                                    else:
+                                                        st.error(f"❌ {alert_response.json().get('detail', 'Failed')}")
+                                                except Exception as e:
+                                                    st.error(f"❌ Error: {e}")
+                                else:
+                                    st.warning("No email available")
+                else:
+                    st.success("✅ No overdue invoices!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 3: Payment Confirmations
+    with tab3:
+        st.subheader("✅ Payment Confirmations")
+        st.write("Send thank you emails after receiving payments")
+        
+        invoice_num = st.text_input("Invoice Number", placeholder="INV-2025-1000")
+        
+        if invoice_num:
+            try:
+                # Get payment history
+                payments_response = requests.get(f"{API_URL}/api/invoice/{invoice_num}/payments")
+                
+                if payments_response.status_code == 200:
+                    payment_data = payments_response.json()
+                    
+                    if payment_data['payments']:
+                        st.success(f"Found {len(payment_data['payments'])} payment(s)")
+                        
+                        for payment in payment_data['payments']:
+                            with st.expander(f"Payment #{payment['id']} - ₹{payment['amount']:,.2f} on {payment['date']}"):
+                                st.write(f"**Method:** {payment['method']}")
+                                if payment.get('transaction_id'):
+                                    st.write(f"**Transaction ID:** {payment['transaction_id']}")
+                                
+                                if st.button(f"📧 Send Confirmation", key=f"confirm_{payment['id']}", use_container_width=True):
+                                    if not sender_email or not sender_password:
+                                        st.error("Please enter email settings above!")
+                                    else:
+                                        with st.spinner("Sending..."):
+                                            try:
+                                                confirm_response = requests.post(
+                                                    f"{API_URL}/api/notifications/payment-confirmation",
+                                                    params={
+                                                        "invoice_number": invoice_num,
+                                                        "payment_id": payment['id'],
+                                                        "from_email": sender_email,
+                                                        "from_password": sender_password
+                                                    }
+                                                )
+                                                
+                                                if confirm_response.status_code == 200:
+                                                    st.success("✅ Confirmation sent!")
+                                                else:
+                                                    st.error(f"❌ {confirm_response.json().get('detail', 'Failed')}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {e}")
+                    else:
+                        st.info("No payments recorded for this invoice")
+            except Exception as e:
+                st.error(f"Error: {e}")
+    
+    # Tab 4: Dashboard
+    with tab4:
+        st.subheader("📊 Notifications Dashboard")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        try:
+            # Get pending reminders
+            pending_response = requests.get(f"{API_URL}/api/notifications/pending-reminders")
+            if pending_response.status_code == 200:
+                pending_data = pending_response.json()
+                with col1:
+                    st.metric("📧 Pending Reminders", pending_data['count'])
+            
+            # Get overdue invoices
+            overdue_response = requests.get(f"{API_URL}/api/notifications/overdue-invoices")
+            if overdue_response.status_code == 200:
+                overdue_data = overdue_response.json()
+                with col2:
+                    st.metric("⚠️ Overdue Invoices", overdue_data['count'])
+                with col3:
+                    st.metric("💰 Overdue Amount", f"₹{overdue_data.get('total_overdue_amount', 0):,.2f}")
+        except Exception as e:
+            st.error(f"Error loading dashboard: {e}")
+        
+        st.markdown("---")
+        st.info("💡 **Tips:**\n- Send reminders 3-5 days before due date\n- Send overdue alerts immediately after due date\n- Always send payment confirmations to maintain good relationships")
 
  
 # ====================
