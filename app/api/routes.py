@@ -4,7 +4,7 @@ REST API endpoints for invoice operations
 Author: Bunny Rangu
 Day: 4/30
 """
-
+from app.agents.analytics_agent import AnalyticsAgent
 from app.agents.auth_agent import AuthAgent
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Depends
@@ -42,6 +42,8 @@ app = FastAPI(
 pdf_generator = PDFGenerator()
 email_agent = EmailAgent()
 excel_exporter = ExcelExporter()
+# Initialize Analytics Agent
+analytics_agent = AnalyticsAgent()
 
 # Initialize Auth Agent
 auth_agent = AuthAgent()
@@ -644,6 +646,144 @@ async def export_customer_spending_report():
             status_code=500,
             detail=f"Export failed: {str(e)}"
         )
+    
+
+    # ============================================================================
+# ANALYTICS ENDPOINTS
+# ============================================================================
+
+@app.get("/api/analytics/revenue-trends", tags=["Analytics"])
+async def get_revenue_trends(period: str = "monthly"):
+    """
+    Get revenue trends over time
+    
+    - period: 'daily', 'weekly', or 'monthly'
+    - Returns trend data for charts
+    """
+    invoices = agent.get_all_invoices()
+    
+    if not invoices:
+        return {
+            "success": True,
+            "data": {"dates": [], "revenue": [], "gst": []}
+        }
+    
+    trends = analytics_agent.revenue_trends(invoices, period=period)
+    
+    return {
+        "success": True,
+        "period": period,
+        "data": trends
+    }
+
+
+@app.get("/api/analytics/customer-clv", tags=["Analytics"])
+async def get_customer_lifetime_value():
+    """
+    Get customer lifetime value analysis
+    
+    - Returns CLV metrics for all customers
+    - Sorted by CLV (highest first)
+    """
+    invoices = agent.get_all_invoices()
+    
+    if not invoices:
+        return {
+            "success": True,
+            "customers": []
+        }
+    
+    clv_data = analytics_agent.customer_lifetime_value(invoices)
+    
+    return {
+        "success": True,
+        "customers": clv_data
+    }
+
+
+@app.get("/api/analytics/gst-breakdown", tags=["Analytics"])
+async def get_gst_rate_breakdown():
+    """
+    Get GST collection breakdown by tax rate
+    
+    - Shows revenue and GST for each rate
+    - Useful for tax filing
+    """
+    invoices = agent.get_all_invoices()
+    
+    if not invoices:
+        return {
+            "success": True,
+            "breakdown": []
+        }
+    
+    breakdown = analytics_agent.gst_rate_analysis(invoices)
+    
+    return {
+        "success": True,
+        **breakdown
+    }
+
+
+@app.get("/api/analytics/top-products", tags=["Analytics"])
+async def get_top_products(limit: int = 10):
+    """
+    Get top-selling products
+    
+    - limit: Number of products to return (default 10)
+    - Sorted by revenue
+    """
+    invoices = agent.get_all_invoices()
+    
+    if not invoices:
+        return {
+            "success": True,
+            "products": []
+        }
+    
+    products = analytics_agent.product_performance(invoices, top_n=limit)
+    
+    return {
+        "success": True,
+        "products": products
+    }
+
+
+@app.get("/api/analytics/payment-insights", tags=["Analytics"])
+async def get_payment_insights():
+    """
+    Get payment collection insights
+    
+    - Payment status breakdown
+    - Collection rate
+    - Outstanding amounts
+    """
+    invoices = agent.get_all_invoices()
+    
+    insights = analytics_agent.payment_insights(invoices)
+    
+    return {
+        "success": True,
+        "insights": insights
+    }
+
+
+@app.get("/api/analytics/growth-metrics", tags=["Analytics"])
+async def get_growth_metrics():
+    """
+    Get business growth metrics
+    
+    - Month-over-Month growth
+    - Quarter-over-Quarter growth
+    """
+    invoices = agent.get_all_invoices()
+    
+    metrics = analytics_agent.growth_metrics(invoices)
+    
+    return {
+        "success": True,
+        "metrics": metrics
+    }
 
 # ============================================================================
 # AUTH ENDPOINTS

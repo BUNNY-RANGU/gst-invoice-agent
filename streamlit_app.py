@@ -151,7 +151,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "ℹ️ About"]
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "ℹ️ About"]
 )
 
 st.sidebar.markdown("---")
@@ -548,9 +548,189 @@ elif page == "📋 View Invoices":
     except Exception as e:
         st.error(f"Error: {e}")
 
+        
 
 # ====================
-# PAGE 4: ABOUT
+# PAGE 4: EXPORT REPORTS  
+# ====================
+elif page == "📥 Export Reports":
+    st.markdown('<h1 class="main-header">📥 Export Reports</h1>', unsafe_allow_html=True)
+    
+    st.info("💡 Download reports as Excel files for accounting and GST filing")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### 📋 All Invoices")
+        st.write("Export complete invoice list")
+        
+        if st.button("📥 Download", key="export_invoices", use_container_width=True):
+            with st.spinner("Generating..."):
+                try:
+                    response = requests.get(f"{API_URL}/api/export/invoices", stream=True)
+                    if response.status_code == 200:
+                        filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                        with open(filename, 'wb') as f:
+                            f.write(response.content)
+                        st.success(f"✅ Downloaded: {filename}")
+                        with open(filename, 'rb') as f:
+                            st.download_button("💾 Save File", f, file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    
+    with col2:
+        st.markdown("### 💰 GST Summary")
+        st.write("Monthly GST report")
+        selected_month = st.text_input("Month (YYYY-MM)", value=datetime.now().strftime("%Y-%m"), key="gst_month")
+        
+        if st.button("📥 Download", key="export_gst", use_container_width=True):
+            with st.spinner("Generating..."):
+                try:
+                    response = requests.get(f"{API_URL}/api/export/gst-summary", params={"month": selected_month}, stream=True)
+                    if response.status_code == 200:
+                        filename = f"gst_summary_{selected_month.replace('-', '_')}.xlsx"
+                        with open(filename, 'wb') as f:
+                            f.write(response.content)
+                        st.success("✅ GST summary generated!")
+                        with open(filename, 'rb') as f:
+                            st.download_button("💾 Save Report", f, file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    
+    with col3:
+        st.markdown("### 👥 Customer Report")
+        st.write("Customer spending analysis")
+        
+        if st.button("📥 Download", key="export_customers", use_container_width=True):
+            with st.spinner("Generating..."):
+                try:
+                    response = requests.get(f"{API_URL}/api/export/customer-report", stream=True)
+                    if response.status_code == 200:
+                        filename = f"customer_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                        with open(filename, 'wb') as f:
+                            f.write(response.content)
+                        st.success("✅ Customer report generated!")
+                        with open(filename, 'rb') as f:
+                            st.download_button("💾 Save Report", f, file_name=filename, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+
+# ====================
+# PAGE 5: ANALYTICS
+# ====================
+elif page == "📈 Analytics":
+    st.markdown('<h1 class="main-header">📈 Advanced Analytics</h1>', unsafe_allow_html=True)
+    
+    # Revenue Trends
+    st.subheader("💰 Revenue Trends")
+    period = st.selectbox("Period", ["daily", "weekly", "monthly"], index=2, key="trend_period")
+    
+    try:
+        trends_response = requests.get(f"{API_URL}/api/analytics/revenue-trends", params={"period": period})
+        
+        if trends_response.status_code == 200:
+            trends = trends_response.json()
+            
+            if trends['data']['dates']:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(
+                    x=trends['data']['dates'],
+                    y=trends['data']['revenue'],
+                    mode='lines+markers',
+                    name='Revenue',
+                    line=dict(color='#2563eb', width=3),
+                    fill='tozeroy'
+                ))
+                fig.add_trace(go.Scatter(
+                    x=trends['data']['dates'],
+                    y=trends['data']['gst'],
+                    mode='lines+markers',
+                    name='GST',
+                    line=dict(color='#dc2626', width=2)
+                ))
+                fig.update_layout(title=f"Revenue & GST Trends ({period.capitalize()})", xaxis_title="Period", yaxis_title="Amount (₹)", hovermode='x unified')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No data yet. Create invoices first!")
+    except Exception as e:
+        st.error(f"Error: {e}")
+    
+    st.markdown("---")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("👥 Top Customers by CLV")
+        try:
+            clv_response = requests.get(f"{API_URL}/api/analytics/customer-clv")
+            if clv_response.status_code == 200:
+                clv_data = clv_response.json()
+                if clv_data['customers']:
+                    top_5 = clv_data['customers'][:5]
+                    clv_df = pd.DataFrame(top_5)
+                    fig = px.bar(clv_df, x='name', y='clv', title='Customer Lifetime Value', labels={'name': 'Customer', 'clv': 'CLV (₹)'}, color='clv', color_continuous_scale='Greens')
+                    st.plotly_chart(fig, use_container_width=True)
+                    display_df = clv_df[['name', 'total_spent', 'invoice_count', 'clv']].copy()
+                    display_df.columns = ['Customer', 'Total Spent', 'Invoices', 'CLV']
+                    st.dataframe(display_df.style.format({'Total Spent': '₹{:,.2f}', 'CLV': '₹{:,.2f}'}), use_container_width=True)
+                else:
+                    st.info("No data yet")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    with col2:
+        st.subheader("💸 GST Rate Breakdown")
+        try:
+            gst_response = requests.get(f"{API_URL}/api/analytics/gst-breakdown")
+            if gst_response.status_code == 200:
+                gst_data = gst_response.json()
+                if gst_data['breakdown']:
+                    gst_df = pd.DataFrame(gst_data['breakdown'])
+                    fig = px.pie(gst_df, values='gst_collected', names='rate', title='GST by Rate', hole=0.4)
+                    st.plotly_chart(fig, use_container_width=True)
+                    display_gst = gst_df[['rate', 'revenue', 'gst_collected']].copy()
+                    display_gst.columns = ['GST %', 'Revenue', 'GST Collected']
+                    st.dataframe(display_gst.style.format({'Revenue': '₹{:,.2f}', 'GST Collected': '₹{:,.2f}'}), use_container_width=True)
+                else:
+                    st.info("No data yet")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    st.markdown("---")
+    
+    st.subheader("🏆 Top Products")
+    try:
+        products_response = requests.get(f"{API_URL}/api/analytics/top-products", params={"limit": 10})
+        if products_response.status_code == 200:
+            products_data = products_response.json()
+            if products_data['products']:
+                products_df = pd.DataFrame(products_data['products'])
+                col1, col2 = st.columns(2)
+                with col1:
+                    fig = px.bar(products_df.head(5), x='revenue', y='name', orientation='h', title='Top 5 by Revenue', labels={'name': 'Product', 'revenue': 'Revenue (₹)'}, color='revenue', color_continuous_scale='Blues')
+                    st.plotly_chart(fig, use_container_width=True)
+                with col2:
+                    fig = px.bar(products_df.head(5), x='quantity_sold', y='name', orientation='h', title='Top 5 by Quantity', labels={'name': 'Product', 'quantity_sold': 'Units'}, color='quantity_sold', color_continuous_scale='Oranges')
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                display_df = products_df[['name', 'revenue', 'quantity_sold']].copy()
+                display_df.columns = ['Product', 'Revenue', 'Quantity Sold']
+                st.dataframe(display_df.style.format({'Revenue': '₹{:,.2f}'}), use_container_width=True)
+            else:
+                st.info("No data yet")
+    except Exception as e:
+        st.error(f"Error: {e}")
+
+
+# ====================
+# PAGE 6: ABOUT
 # ====================
 elif page == "ℹ️ About":
     st.markdown('<h1 class="main-header">ℹ️ About GST Invoice Agent</h1>', unsafe_allow_html=True)
@@ -594,9 +774,9 @@ elif page == "ℹ️ About":
     st.balloons()
 
 
-# Payment Status Section
-elif page == "💳 Payment Status":
-    st.header("💳 Payment Status")
+# # Payment Status Section
+# elif page == "💳 Payment Status":
+#     st.header("💳 Payment Status")
     
     # Input invoice number
     invoice_num = st.text_input("Enter Invoice Number", placeholder="INV-2025-XXXX")
