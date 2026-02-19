@@ -130,6 +130,26 @@ class Payment(Base):
     
     def __repr__(self):
         return f"<Payment(amount=₹{self.amount}, method={self.payment_method})>"
+
+
+class AuditLog(Base):
+    """Audit log model for tracking all actions"""
+    __tablename__ = 'audit_logs'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.now, index=True)
+    user = Column(String(50), index=True)  # Username who performed action
+    action = Column(String(50), index=True)  # CREATE, UPDATE, DELETE, LOGIN, etc.
+    entity_type = Column(String(50))  # invoice, payment, customer, etc.
+    entity_id = Column(String(100))  # Invoice number, payment ID, etc.
+    details = Column(Text)  # JSON string with additional details
+    ip_address = Column(String(50))  # User's IP address
+    status = Column(String(20))  # success, failed, error
+    
+    def __repr__(self):
+        return f"<AuditLog(user='{self.user}', action='{self.action}', entity='{self.entity_type}')>"
+
+
 # Database connection setup
 DATABASE_URL = "sqlite:///./gst_invoices.db"
 

@@ -151,8 +151,8 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "ℹ️ About"]
-)
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "📜 Audit Logs", "ℹ️ About"]
+)  
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🚀 Quick Stats")
@@ -1273,6 +1273,273 @@ John Doe,9876543210,Laptop,50000,1,18
     
     st.markdown("---")
     st.info("💡 **How to use:**\n1. Download template\n2. Fill with your data\n3. Upload CSV\n4. Import!")
+
+
+    # ====================
+# PAGE 8: AUDIT LOGS
+# ====================
+elif page == "📜 Audit Logs":
+    st.markdown('<h1 class="main-header">📜 Audit Trail & Activity</h1>', unsafe_allow_html=True)
+    
+    st.info("🔒 Track all system activities for compliance and security")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "📋 All Logs", "👤 User Activity", "📥 Export"])
+    
+    # Tab 1: Dashboard
+    with tab1:
+        st.subheader("📊 System Activity Dashboard")
+        
+        # Date range selector
+        col1, col2 = st.columns(2)
+        with col1:
+            days = st.selectbox("Time Period", [7, 14, 30, 90], format_func=lambda x: f"Last {x} days", key="audit_days")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/audit/system-activity", params={"days": days})
+            
+            if response.status_code == 200:
+                stats = response.json()['stats']
+                
+                # Metrics
+                metric_col1, metric_col2, metric_col3 = st.columns(3)
+                metric_col1.metric("📊 Total Actions", stats['total_actions'])
+                metric_col2.metric("👥 Unique Users", stats['unique_users'])
+                metric_col3.metric("📅 Period", f"{stats['period_days']} days")
+                
+                st.markdown("---")
+                
+                # Top Users
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.subheader("🏆 Most Active Users")
+                    if stats['top_users']:
+                        users_df = pd.DataFrame(stats['top_users'])
+                        fig = px.bar(
+                            users_df,
+                            x='user',
+                            y='actions',
+                            title='User Activity',
+                            labels={'user': 'User', 'actions': 'Actions'},
+                            color='actions',
+                            color_continuous_scale='Blues'
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No activity yet")
+                
+                with col2:
+                    st.subheader("📈 Action Breakdown")
+                    if stats['action_breakdown']:
+                        action_df = pd.DataFrame([
+                            {'Action': k, 'Count': v}
+                            for k, v in stats['action_breakdown'].items()
+                        ])
+                        fig = px.pie(
+                            action_df,
+                            values='Count',
+                            names='Action',
+                            title='Actions by Type'
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Daily Activity
+                st.markdown("---")
+                st.subheader("📅 Daily Activity Trend")
+                if stats['daily_activity']:
+                    daily_df = pd.DataFrame([
+                        {'Date': k, 'Actions': v}
+                        for k, v in sorted(stats['daily_activity'].items())
+                    ])
+                    fig = px.line(
+                        daily_df,
+                        x='Date',
+                        y='Actions',
+                        title='Actions Per Day',
+                        markers=True
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 2: All Logs
+    with tab2:
+        st.subheader("📋 Audit Log Viewer")
+        
+        # Filters
+        with st.expander("🔍 Filters", expanded=True):
+            filter_col1, filter_col2, filter_col3 = st.columns(3)
+            
+            with filter_col1:
+                filter_user = st.text_input("User", placeholder="Filter by username", key="log_filter_user")
+                action_types = ["All", "create", "read", "update", "delete", "export", "import", "email", "payment"]
+                filter_action = st.selectbox("Action Type", action_types, key="log_filter_action")
+            
+            with filter_col2:
+                filter_entity = st.selectbox("Entity Type", ["All", "invoice", "payment", "customer"], key="log_filter_entity")
+                filter_limit = st.number_input("Max Results", min_value=10, max_value=1000, value=100, step=10, key="log_filter_limit")
+            
+            with filter_col3:
+                filter_start = st.date_input("Start Date", key="log_filter_start")
+                filter_end = st.date_input("End Date", key="log_filter_end")
+            
+            apply_log_filters = st.button("🔍 Apply Filters", use_container_width=True)
+        
+        # Get logs
+        try:
+            params = {"limit": filter_limit}
+            
+            if apply_log_filters or True:  # Always show logs
+                if filter_user:
+                    params['user'] = filter_user
+                if filter_action and filter_action != "All":
+                    params['action'] = filter_action
+                if filter_entity and filter_entity != "All":
+                    params['entity_type'] = filter_entity
+                if filter_start:
+                    params['start_date'] = str(filter_start)
+                if filter_end:
+                    params['end_date'] = str(filter_end)
+                
+                response = requests.get(f"{API_URL}/api/audit/logs", params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if data['count'] > 0:
+                        st.success(f"📊 Found {data['count']} log entries")
+                        
+                        # Display logs
+                        for log in data['logs']:
+                            status_icon = "✅" if log['status'] == 'success' else "❌"
+                            with st.expander(f"{status_icon} {log['timestamp']} - {log['user']} - {log['action_description']}"):
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.write(f"**User:** {log['user']}")
+                                    st.write(f"**Action:** {log['action']}")
+                                    st.write(f"**Entity Type:** {log['entity_type'] or 'N/A'}")
+                                    st.write(f"**Entity ID:** {log['entity_id'] or 'N/A'}")
+                                
+                                with col2:
+                                    st.write(f"**Status:** {log['status']}")
+                                    st.write(f"**IP Address:** {log['ip_address'] or 'N/A'}")
+                                    st.write(f"**Timestamp:** {log['timestamp']}")
+                                
+                                if log['details']:
+                                    st.write(f"**Details:**")
+                                    st.json(log['details'])
+                    else:
+                        st.info("No logs found matching your criteria")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 3: User Activity
+    with tab3:
+        st.subheader("👤 User Activity Analysis")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            analyze_user = st.text_input("Username to Analyze", value=st.session_state.username, key="analyze_user")
+        with col2:
+            analyze_days = st.number_input("Days", min_value=1, max_value=365, value=30, key="analyze_days")
+        
+        if st.button("📊 Analyze Activity", use_container_width=True):
+            try:
+                response = requests.get(
+                    f"{API_URL}/api/audit/user-activity/{analyze_user}",
+                    params={"days": analyze_days}
+                )
+                
+                if response.status_code == 200:
+                    activity = response.json()['activity']
+                    
+                    # Metrics
+                    st.markdown(f"### Activity Summary for **{activity['user']}**")
+                    
+                    metric_col1, metric_col2, metric_col3 = st.columns(3)
+                    metric_col1.metric("Total Actions", activity['total_actions'])
+                    metric_col2.metric("Success Rate", f"{(activity['success_count']/activity['total_actions']*100) if activity['total_actions'] > 0 else 0:.1f}%")
+                    metric_col3.metric("Failed Actions", activity['failed_count'])
+                    
+                    # Action breakdown
+                    st.markdown("---")
+                    st.subheader("📈 Actions by Type")
+                    
+                    if activity['action_breakdown']:
+                        action_df = pd.DataFrame([
+                            {'Action': k, 'Count': v}
+                            for k, v in activity['action_breakdown'].items()
+                        ])
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            fig = px.bar(
+                                action_df,
+                                x='Action',
+                                y='Count',
+                                title='Action Distribution'
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                        
+                        with col2:
+                            fig = px.pie(
+                                action_df,
+                                values='Count',
+                                names='Action',
+                                title='Action Breakdown'
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Recent activities
+                    st.markdown("---")
+                    st.subheader("🕐 Recent Activities")
+                    
+                    if activity['recent_activities']:
+                        recent_df = pd.DataFrame(activity['recent_activities'])
+                        st.dataframe(recent_df, use_container_width=True)
+                    else:
+                        st.info("No recent activities")
+            except Exception as e:
+                st.error(f"Error: {e}")
+    
+    # Tab 4: Export
+    with tab4:
+        st.subheader("📥 Export Audit Trail")
+        
+        st.write("Export complete audit trail for compliance and reporting")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            export_start = st.date_input("Start Date", key="export_start")
+        with col2:
+            export_end = st.date_input("End Date", key="export_end")
+        
+        if st.button("📥 Download Audit Trail CSV", use_container_width=True):
+            try:
+                params = {}
+                if export_start:
+                    params['start_date'] = str(export_start)
+                if export_end:
+                    params['end_date'] = str(export_end)
+                
+                response = requests.get(f"{API_URL}/api/audit/export", params=params)
+                
+                if response.status_code == 200:
+                    st.download_button(
+                        "💾 Save Audit Trail",
+                        response.content,
+                        f"audit_trail_{export_start}_to_{export_end}.csv",
+                        "text/csv",
+                        use_container_width=True
+                    )
+                    st.success("✅ Ready to download!")
+            except Exception as e:
+                st.error(f"Error: {e}")
+        
+        st.markdown("---")
+        st.info("💡 **Compliance Tips:**\n- Export audit logs regularly for backup\n- Review failed actions for security issues\n- Track user activity for accountability\n- Maintain logs for regulatory compliance")
 
 # ====================
 # PAGE 6: ABOUT

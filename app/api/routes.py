@@ -18,6 +18,8 @@ from datetime import datetime
 from app.agents.bulk_operations import BulkOperations
 from fastapi import UploadFile, File
 from app.agents.notification_agent import NotificationAgent
+from app.agents.audit_agent import AuditAgent
+from fastapi import Request
 import sys
 import os
 from fastapi.responses import Response
@@ -48,6 +50,8 @@ email_agent = EmailAgent()
 excel_exporter = ExcelExporter()
 # Initialize Analytics Agent
 analytics_agent = AnalyticsAgent()
+# Initialize Audit Agent
+audit_agent = AuditAgent()
 # Initialize Notification Agent
 notification_agent = NotificationAgent()
 # Initialize Bulk Operations
@@ -65,6 +69,46 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
 )
+
+# ============================================================================
+# AUTO-LOGGING MIDDLEWARE
+# ============================================================================
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all API requests"""
+    response = await call_next(request)
+    
+    # Log certain endpoints
+    if request.url.path.startswith("/api/invoice") or \
+       request.url.path.startswith("/api/payment"):
+        
+        method = request.method
+        path = request.url.path
+        
+        # Get user from session (simplified - you'd get from JWT token)
+        user = "system"  # Replace with actual user from JWT
+        
+        # Determine action type
+        action = "VIEW"
+        if method == "POST":
+            if "invoice" in path:
+                action = "CREATE_INVOICE"
+            elif "payment" in path:
+                action = "CREATE_PAYMENT"
+        
+        # Log it (async, don't block response)
+        try:
+            audit_agent.log_action(
+                user=user,
+                action=action,
+                entity_type=path.split("/")[2] if len(path.split("/")) > 2 else "unknown",
+                ip_address=request.client.host if request.client else None
+            )
+        except:
+            pass  # Don't let logging errors break the app
+    
+    return response
 
 # ============================================================================
 # PYDANTIC MODELS (Data Validation)
@@ -736,6 +780,127 @@ async def get_gst_rate_breakdown():
         **breakdown
     }
      
+
+# ============================================================================
+# AUDIT LOG ENDPOINTS
+# ============================================================================
+
+@app.get("/api/audit/logs", tags=["Audit Logs"])
+async def get_audit_logs(
+    user: str = None,
+    action: str = None,
+    entity_type: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    limit: int = 100
+):
+    """
+    Get audit logs with filters
+    
+    - user: Filter by username
+    - action: Filter by action type
+    - entity_type: Filter by entity type (invoice, payment, customer)
+    - start_date: Start date (YYYY-MM-DD)
+    - end_date: End date (YYYY-MM-DD)
+    - limit: Max results (default 100)
+    """
+    logs = audit_agent.get_logs(
+        user=user,
+        action=action,
+        entity_type=entity_type,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit
+    )
+    
+    return {
+        "success": True,
+        "count": len(logs),
+        "logs": logs
+    }
+
+
+@app.get("/api/audit/user-activity/{username}", tags=["Audit Logs"])
+async def get_user_activity_stats(username: str, days: int = 30):
+    """
+    Get activity statistics for a specific user
+    
+    - Returns action counts, success rate, recent activities
+    - Default: last 30 days
+    """
+    activity = audit_agent.get_user_activity(username, days=days)
+    
+    return {
+        "success": True,
+        "activity": activity
+    }
+
+
+@app.get("/api/audit/system-activity", tags=["Audit Logs"])
+async def get_system_activity_stats(days: int = 7):
+    """
+    Get overall system activity statistics
+    
+    - Total actions, unique users, top users
+    - Action breakdown, daily activity
+    - Default: last 7 days
+    """
+    stats = audit_agent.get_system_activity(days=days)
+    
+    return {
+        "success": True,
+        "stats": stats
+    }
+
+
+@app.get("/api/audit/export", tags=["Audit Logs"])
+async def export_audit_trail(
+    start_date: str = None,
+    end_date: str = None
+):
+    """
+    Export complete audit trail
+    
+    - For compliance and reporting
+    - Returns all logs within date range
+    """
+    logs = audit_agent.export_audit_trail(
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    # Convert to CSV
+    import csv
+    from io import StringIO
+    
+    output = StringIO()
+    if logs:
+        writer = csv.DictWriter(output, fieldnames=logs[0].keys())
+        writer.writeheader()
+        writer.writerows(logs)
+    
+    csv_content = output.getvalue()
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=audit_trail.csv"
+        }
+    )
+
+
+@app.get("/api/audit/action-types", tags=["Audit Logs"])
+async def get_action_types():
+    """
+    Get list of all action types
+    
+    - For filtering and documentation
+    """
+    return {
+        "success": True,
+        "action_types": audit_agent.ACTION_TYPES
+    }
 
      # ============================================================================
 # NOTIFICATION ENDPOINTS
