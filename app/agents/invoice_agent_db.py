@@ -166,7 +166,7 @@ class InvoiceAgentDB:
         """Get invoices for a specific customer"""
         db = self.get_db()
         try:
-            invoices = self.db_ops.get_invoices_by_customer(db, customer_name)
+            invoices = self.db_ops.get_customer_invoices(db, customer_name)
             return [self._invoice_model_to_dict(inv) for inv in invoices]
         finally:
             db.close()

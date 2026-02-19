@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 50px; color: #333; line-height: 1.6; }
+        .header { margin-bottom: 40px; }
+        .company { font-size: 24px; font-weight: 300; color: #2c3e50; margin-bottom: 5px; }
+        .invoice-number { font-size: 14px; color: #95a5a6; }
+        .separator { height: 1px; background: #ecf0f1; margin: 30px 0; }
+        .row { display: flex; justify-content: space-between; margin: 15px 0; }
+        .label { color: #95a5a6; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 14px; color: #2c3e50; font-weight: 500; }
+        table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+        table thead { border-bottom: 2px solid #ecf0f1; }
+        table th { padding: 15px 0; text-align: left; font-weight: 500; font-size: 12px; color: #95a5a6; text-transform: uppercase; }
+        table td { padding: 15px 0; border-bottom: 1px solid #ecf0f1; }
+        .text-right { text-align: right; }
+        .totals { margin-top: 30px; }
+        .total-line { display: flex; justify-content: flex-end; padding: 10px 0; }
+        .total-line .label { width: 150px; text-align: right; margin-right: 50px; }
+        .total-line .value { width: 150px; text-align: right; }
+        .grand-total { border-top: 2px solid #2c3e50; margin-top: 10px; padding-top: 15px; font-size: 20px; font-weight: 600; }
+        .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #95a5a6; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="company">{{ company.name }}</div>
+        <div class="invoice-number">INVOICE #{{ invoice_number }}</div>
+    </div>
+    
+    <div class="row">
+        <div>
+            <div class="label">Date</div>
+            <div class="value">{{ date }}</div>
+        </div>
+        <div>
+            <div class="label">Status</div>
+            <div class="value">{{ payment_status }}</div>
+        </div>
+    </div>
+    
+    <div class="separator"></div>
+    
+    <div class="row">
+        <div style="width: 48%;">
+            <div class="label">Bill To</div>
+            <div class="value" style="margin-top: 10px;">
+                <div style="font-size: 16px; margin-bottom: 5px;">{{ customer.name }}</div>
+                <div style="font-size: 13px; color: #7f8c8d;">{{ customer.phone }}</div>
+                {% if customer.email %}<div style="font-size: 13px; color: #7f8c8d;">{{ customer.email }}</div>{% endif %}
+            </div>
+        </div>
+        <div style="width: 48%; text-align: right;">
+            <div class="label">From</div>
+            <div class="value" style="margin-top: 10px;">
+                <div style="font-size: 13px; color: #7f8c8d;">{{ company.address }}</div>
+                <div style="font-size: 13px; color: #7f8c8d;">{{ company.phone }}</div>
+                <div style="font-size: 13px; color: #7f8c8d;">{{ company.email }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="separator"></div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 50%;">Item</th>
+                <th style="width: 15%; text-align: right;">Qty</th>
+                <th style="width: 15%; text-align: right;">Price</th>
+                <th style="width: 20%; text-align: right;">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>
+                    <div style="font-weight: 500;">{{ item.name }}</div>
+                    {% if item.description %}<div style="font-size: 12px; color: #95a5a6;">{{ item.description }}</div>{% endif %}
+                    <div style="font-size: 11px; color: #95a5a6; margin-top: 3px;">GST {{ item.gst_rate }}%</div>
+                </td>
+                <td class="text-right">{{ item.quantity }}</td>
+                <td class="text-right">₹{{ "%.2f"|format(item.unit_price) }}</td>
+                <td class="text-right">₹{{ "%.2f"|format(item.total_amount) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="totals">
+        <div class="total-line">
+            <div class="label">Subtotal</div>
+            <div class="value">₹{{ "%.2f"|format(totals.subtotal) }}</div>
+        </div>
+        <div class="total-line">
+            <div class="label">CGST</div>
+            <div class="value">₹{{ "%.2f"|format(totals.total_cgst) }}</div>
+        </div>
+        <div class="total-line">
+            <div class="label">SGST</div>
+            <div class="value">₹{{ "%.2f"|format(totals.total_sgst) }}</div>
+        </div>
+        <div class="total-line grand-total">
+            <div class="label">Total</div>
+            <div class="value">₹{{ "%.2f"|format(totals.grand_total) }}</div>
+        </div>
+    </div>
+    
+    {% if notes %}
+    <div class="separator"></div>
+    <div class="label">Notes</div>
+    <div class="value" style="margin-top: 10px; font-size: 13px;">{{ notes }}</div>
+    {% endif %}
+    
+    <div class="footer">
+        <p>{{ company.name }} • GSTIN: {{ company.gst_number }}</p>
+        <p style="margin-top: 5px;">Thank you for your business</p>
+    </div>
+</body>
+</html>

@@ -22,8 +22,8 @@ class InvoiceValidator:
     # Valid GST number format (15 characters)
     GST_PATTERN = r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$'
     
-    # Phone number pattern (10 digits)
-    PHONE_PATTERN = r'^[6-9]\d{9}$'
+    # Phone number pattern - accepts any 9 or 10 digits for flexibility
+    PHONE_PATTERN = r'^\d{9,10}$'
     
     # Email pattern
     EMAIL_PATTERN = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -65,7 +65,7 @@ class InvoiceValidator:
         phone_clean = phone.replace(" ", "").replace("-", "")
         
         if not re.match(InvoiceValidator.PHONE_PATTERN, phone_clean):
-            return False, "Invalid phone number (must be 10 digits starting with 6-9)"
+            return False, "Invalid phone number (must be 9-10 digits)"
         
         return True, "Valid"
     

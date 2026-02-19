@@ -322,9 +322,33 @@ elif page == "➕ Create Invoice":
             st.markdown("---")
         
         # Notes
-        notes = st.text_area("Additional Notes", placeholder="Thank you for your business!")
+        notes = st.text_area("Additional Notes", placeholder="Thank you for your business!", key="invoice_notes")
         
-        # Submit button
+        # Template Selection
+        st.markdown("---")
+        st.subheader("📄 Invoice Template")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            template = st.selectbox(
+                "Choose Template Style",
+                options=["modern", "classic", "minimal"],
+                format_func=lambda x: {
+                    "modern": "🎨 Modern (Colorful Gradient)",
+                    "classic": "📜 Classic (Black & White)",
+                    "minimal": "✨ Minimal (Clean & Simple)"
+                }[x],
+                index=0,
+                key="template_selector"
+            )
+        with col2:
+            st.info(
+                "**Modern:** Tech/Startups\n\n"
+                "**Classic:** Professional\n\n"
+                "**Minimal:** Clean & Simple"
+            )
+        
+        # Submit button - MUST BE LAST
         submitted = st.form_submit_button("🚀 Create Invoice", use_container_width=True)
         
         if submitted:
@@ -351,7 +375,8 @@ elif page == "➕ Create Invoice":
                     try:
                         response = requests.post(
                             f"{API_URL}/api/invoice/create-with-pdf",
-                            json=payload
+                            json=payload,
+                            params={"template": template}
                         )
                         
                         if response.status_code == 200:
@@ -372,8 +397,8 @@ elif page == "➕ Create Invoice":
                                 st.info(f"**GST:** ₹{invoice['totals']['total_gst']:,.2f}")
                             
                             # Download PDF button
-                            pdf_url = f"{API_URL}/api/invoice/{invoice['invoice_number']}/pdf"
-                            st.markdown(f"[📥 Download PDF]({pdf_url})")
+                            pdf_url = f"{API_URL}/api/invoice/{invoice['invoice_number']}/pdf?template={template}"
+                            st.markdown(f"[📥 Download PDF ({template.capitalize()})]({pdf_url})")
                         else:
                             st.error(f"❌ Error: {response.json().get('detail', 'Unknown error')}")
                     except Exception as e:

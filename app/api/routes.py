@@ -80,7 +80,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 class CustomerModel(BaseModel):
     """Customer details model"""
     name: str = Field(..., min_length=2, max_length=100, description="Customer name")
-    phone: str = Field(..., pattern=r'^[6-9]\d{9}$', description="10-digit phone number")
+    phone: str = Field(..., pattern=r'^\d{9,10}$', description="9 or 10-digit phone number")
     email: Optional[str] = Field(None, description="Email address")
     address: Optional[str] = Field(None, description="Customer address")
     gst_number: Optional[str] = Field(None, description="GST number (15 characters)")
@@ -358,12 +358,13 @@ async def get_statistics():
 
 
 @app.get("/api/invoice/{invoice_number}/pdf", tags=["Invoices"])
-async def download_invoice_pdf(invoice_number: str):
+async def download_invoice_pdf(invoice_number: str, template: str = "modern"):
     """
     Download invoice as PDF
     
     - Retrieves invoice from database
     - Generates beautiful PDF
+    - template: Choose 'modern', 'classic', or 'minimal' (default: modern)
     - Returns PDF file for download
     """
     # Get invoice from database
@@ -376,15 +377,15 @@ async def download_invoice_pdf(invoice_number: str):
         )
     
     try:
-        # Generate PDF bytes
-        pdf_bytes = pdf_generator.generate_pdf_bytes(invoice)
+        # Generate PDF bytes with selected template
+        pdf_bytes = pdf_generator.generate_pdf_bytes(invoice, template=template)
         
         # Return PDF as downloadable file
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={invoice_number}.pdf"
+                "Content-Disposition": f"attachment; filename={invoice_number}_{template}.pdf"
             }
         )
     except Exception as e:
@@ -392,15 +393,16 @@ async def download_invoice_pdf(invoice_number: str):
             status_code=500,
             detail=f"Error generating PDF: {str(e)}"
         )
-
+    
 
 @app.post("/api/invoice/create-with-pdf", tags=["Invoices"])
-async def create_invoice_with_pdf(request: InvoiceCreateRequest):
+async def create_invoice_with_pdf(request: InvoiceCreateRequest, template: str = "modern"):
     """
     Create invoice and automatically save PDF
     
     - Creates invoice in database
-    - Generates PDF file
+    - Generates PDF file with chosen template
+    - template: 'modern', 'classic', or 'minimal'
     - Returns invoice data with PDF path
     """
     # Convert Pydantic models to dictionaries
@@ -417,11 +419,12 @@ async def create_invoice_with_pdf(request: InvoiceCreateRequest):
     if not result['success']:
         raise HTTPException(status_code=400, detail=result['error'])
     
-    # Generate PDF
+    # Generate PDF with selected template
     try:
-        pdf_path = pdf_generator.generate_pdf(result['invoice'])
+        pdf_path = pdf_generator.generate_pdf(result['invoice'], template=template)
         result['invoice']['pdf_path'] = pdf_path
-        result['message'] = f"{result['message']} - PDF saved to {pdf_path}"
+        result['invoice']['template_used'] = template
+        result['message'] = f"{result['message']} - PDF saved with {template} template"
     except Exception as e:
         result['invoice']['pdf_path'] = None
         result['message'] = f"{result['message']} - Warning: PDF generation failed: {str(e)}"

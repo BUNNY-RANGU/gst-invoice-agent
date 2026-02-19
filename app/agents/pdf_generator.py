@@ -8,7 +8,7 @@ Day: 6/30
 from xhtml2pdf import pisa
 from jinja2 import Template
 import os
-from typing import Dict
+from typing import Dict, List
 import sys
 from io import BytesIO
 
@@ -16,38 +16,69 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 
 class PDFGenerator:
-    """Generate professional PDF invoices"""
+    """Generate professional PDF invoices with multiple templates"""
     
-    def __init__(self):
-        """Initialize PDF generator"""
-        # Get template path
-        current_dir = os.path.dirname(__file__)
-        template_path = os.path.join(current_dir, '../templates/invoice_template.html')
+    TEMPLATES = {
+        'modern': 'invoice_templates/modern.html',
+        'classic': 'invoice_templates/classic.html',
+        'minimal': 'invoice_templates/minimal.html'
+    }
+    
+    def __init__(self, template: str = 'modern'):
+        """
+        Initialize PDF generator
         
-        # Load HTML template
+        Args:
+            template: Template name ('modern', 'classic', or 'minimal')
+        """
+        self.set_template(template)
+    
+    def set_template(self, template: str):
+        """
+        Set the template to use
+        
+        Args:
+            template: Template name
+        """
+        if template not in self.TEMPLATES:
+            template = 'modern'  # Default
+        
+        current_dir = os.path.dirname(__file__)
+        template_path = os.path.join(
+            current_dir, 
+            '../templates', 
+            self.TEMPLATES[template]
+        )
+        
         with open(template_path, 'r', encoding='utf-8') as f:
             self.template_content = f.read()
+        
+        self.current_template = template
     
-    def generate_pdf(self, invoice_data: Dict, output_path: str = None) -> str:
+    def generate_pdf(self, invoice_data: Dict, output_path: str = None, template: str = None) -> str:
         """
         Generate PDF from invoice data
         
         Args:
             invoice_data: Complete invoice dictionary
             output_path: Path to save PDF (optional)
+            template: Template to use (optional, overrides default)
             
         Returns:
             Path to generated PDF file
         """
+        # Use specified template if provided
+        if template and template != self.current_template:
+            self.set_template(template)
+        
         # Create Jinja2 template
-        template = Template(self.template_content)
+        template_obj = Template(self.template_content)
         
         # Render HTML with invoice data
-        html_content = template.render(**invoice_data)
+        html_content = template_obj.render(**invoice_data)
         
         # Generate output path if not provided
         if output_path is None:
-            # Create invoices directory if it doesn't exist
             invoices_dir = 'invoices'
             if not os.path.exists(invoices_dir):
                 os.makedirs(invoices_dir)
@@ -70,21 +101,26 @@ class PDFGenerator:
         
         return output_path
     
-    def generate_pdf_bytes(self, invoice_data: Dict) -> bytes:
+    def generate_pdf_bytes(self, invoice_data: Dict, template: str = None) -> bytes:
         """
         Generate PDF as bytes (for API responses)
         
         Args:
             invoice_data: Complete invoice dictionary
+            template: Template to use (optional)
             
         Returns:
             PDF file as bytes
         """
+        # Use specified template if provided
+        if template and (not hasattr(self, 'current_template') or template != self.current_template):
+            self.set_template(template)
+        
         # Create Jinja2 template
-        template = Template(self.template_content)
+        template_obj = Template(self.template_content)
         
         # Render HTML with invoice data
-        html_content = template.render(**invoice_data)
+        html_content = template_obj.render(**invoice_data)
         
         # Generate PDF bytes
         pdf_buffer = BytesIO()
@@ -102,6 +138,10 @@ class PDFGenerator:
         
         return pdf_bytes
 
+    @staticmethod
+    def get_available_templates() -> List[str]:
+        """Get list of available template names"""
+        return list(PDFGenerator.TEMPLATES.keys())
 
 def test_pdf_generator():
     """Test PDF generation"""
