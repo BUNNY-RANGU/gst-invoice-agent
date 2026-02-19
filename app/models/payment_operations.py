@@ -184,4 +184,4 @@ class PaymentOperations:
 
 if __name__ == "__main__":
     print("✅ Payment operations module loaded!")
-    
+    del gst_invoices.db

@@ -406,169 +406,307 @@ elif page == "➕ Create Invoice":
 
 
 # ====================
-# PAGE 3: VIEW INVOICES
+# PAGE 3: VIEW INVOICES (WITH ADVANCED SEARCH)
 # ====================
 elif page == "📋 View Invoices":
     st.markdown('<h1 class="main-header">📋 All Invoices</h1>', unsafe_allow_html=True)
     
-    # Search box
-    search_query = st.text_input("🔍 Search by Customer Name", placeholder="Type customer name...")
+    # Advanced Search Panel
+    with st.expander("🔍 Advanced Search & Filters", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.subheader("📅 Date Range")
+            date_preset = st.selectbox(
+                "Quick Select",
+                options=["all", "today", "this_week", "this_month", "this_quarter", "this_year", "last_30_days"],
+                format_func=lambda x: {
+                    "all": "All Time",
+                    "today": "Today",
+                    "this_week": "This Week",
+                    "this_month": "This Month",
+                    "this_quarter": "This Quarter",
+                    "this_year": "This Year",
+                    "last_30_days": "Last 30 Days"
+                }[x],
+                key="date_preset"
+            )
+            
+            if date_preset == "all":
+                use_custom = st.checkbox("Custom Date Range")
+                if use_custom:
+                    start_date = st.date_input("Start Date", key="start_date")
+                    end_date = st.date_input("End Date", key="end_date")
+                else:
+                    start_date = None
+                    end_date = None
+            else:
+                start_date = None
+                end_date = None
+        
+        with col2:
+            st.subheader("💰 Amount")
+            amount_range = st.selectbox(
+                "Amount Range",
+                options=["all", "0-10000", "10000-50000", "50000-100000", "100000+", "custom"],
+                format_func=lambda x: {
+                    "all": "All Amounts",
+                    "0-10000": "Under ₹10,000",
+                    "10000-50000": "₹10K - ₹50K",
+                    "50000-100000": "₹50K - ₹1L",
+                    "100000+": "Above ₹1L",
+                    "custom": "Custom Range"
+                }[x],
+                key="amount_range"
+            )
+            
+            if amount_range == "custom":
+                min_amount = st.number_input("Min Amount (₹)", min_value=0, value=0, step=1000, key="min_amt")
+                max_amount = st.number_input("Max Amount (₹)", min_value=0, value=100000, step=1000, key="max_amt")
+            elif amount_range == "all":
+                min_amount = None
+                max_amount = None
+            else:
+                ranges = {
+                    "0-10000": (0, 10000),
+                    "10000-50000": (10000, 50000),
+                    "50000-100000": (50000, 100000),
+                    "100000+": (100000, None)
+                }
+                min_amount, max_amount = ranges[amount_range]
+        
+        with col3:
+            st.subheader("🏷️ Status & GST")
+            payment_statuses = st.multiselect(
+                "Payment Status",
+                options=["Paid", "Pending", "Partial"],
+                default=["Paid", "Pending", "Partial"],
+                key="payment_status_filter"
+            )
+            
+            gst_rates = st.multiselect(
+                "GST Rate",
+                options=[0, 5, 12, 18, 28],
+                format_func=lambda x: f"{x}%",
+                key="gst_filter"
+            )
+        
+        # Search boxes
+        st.markdown("---")
+        search_col1, search_col2, search_col3 = st.columns(3)
+        
+        with search_col1:
+            customer_query = st.text_input("🔍 Customer Name", placeholder="Search customer...", key="customer_search")
+        with search_col2:
+            invoice_query = st.text_input("🔍 Invoice Number", placeholder="INV-2025-...", key="invoice_search")
+        with search_col3:
+            item_query = st.text_input("🔍 Item Name", placeholder="Search product...", key="item_search")
+        
+        # Apply filters button
+        apply_filters = st.button("🔍 Apply Filters", type="primary", use_container_width=True)
+    
+    # Regular quick search (always visible)
+    if not apply_filters:
+        search_query = st.text_input("🔍 Quick Search by Customer", placeholder="Type customer name...", key="quick_search")
     
     try:
-        # Get all invoices
-        response = requests.get(f"{API_URL}/api/invoices")
-        
-        if response.status_code == 200:
-            data = response.json()
+        # Determine which search to use
+        if apply_filters:
+            # Advanced search via API
+            with st.spinner("Searching..."):
+                params = {}
+                
+                if date_preset != "all":
+                    params['date_preset'] = date_preset
+                if start_date:
+                    params['start_date'] = str(start_date)
+                if end_date:
+                    params['end_date'] = str(end_date)
+                if min_amount is not None:
+                    params['min_amount'] = min_amount
+                if max_amount is not None:
+                    params['max_amount'] = max_amount
+                if payment_statuses:
+                    params['payment_statuses'] = payment_statuses
+                if gst_rates:
+                    params['gst_rates'] = gst_rates
+                if customer_query:
+                    params['customer_query'] = customer_query
+                if invoice_query:
+                    params['invoice_number'] = invoice_query
+                if item_query:
+                    params['item_query'] = item_query
+                
+                response = requests.post(f"{API_URL}/api/search/invoices", params=params)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    invoices = data['invoices']
+                    st.success(f"🔍 {data['summary']}")
+                else:
+                    st.error("Search failed")
+                    invoices = []
+        else:
+            # Simple search
+            response = requests.get(f"{API_URL}/api/invoices")
             
-            if data['success'] and data['invoices']:
+            if response.status_code == 200:
+                data = response.json()
                 invoices = data['invoices']
                 
-                # Filter by search query
+                # Quick filter by customer
                 if search_query:
                     invoices = [
                         inv for inv in invoices 
                         if search_query.lower() in inv['customer']['name'].lower()
                     ]
-                
                 st.info(f"📊 Showing {len(invoices)} invoice(s)")
-                
-                # Display invoices
-                for inv in invoices:
-                    status_color = "🔴" if inv['payment_status'] == "Pending" else "🟡" if inv['payment_status'] == "Partial" else "🟢"
-                    with st.expander(
-                        f"🧾 {inv['invoice_number']} | {inv['customer']['name']} | ₹{inv['totals']['grand_total']:,.2f} | {status_color} {inv['payment_status']}"
-                    ):
-                        col1, col2 = st.columns([2, 1])
-                        
-                        with col1:
-                            st.markdown("### Customer Details")
-                            st.write(f"**Name:** {inv['customer']['name']}")
-                            st.write(f"**Phone:** {inv['customer']['phone']}")
-                            if inv['customer']['email']:
-                                st.write(f"**Email:** {inv['customer']['email']}")
-                            if inv['customer']['gst_number']:
-                                st.write(f"**GST:** {inv['customer']['gst_number']}")
-                            
-                            st.markdown("### Items")
-                            items_df = pd.DataFrame(inv['items'])
-                            st.dataframe(
-                                items_df[['name', 'quantity', 'unit_price', 'gst_rate', 'total_amount']],
-                                use_container_width=True
-                            )
-                        
-                        with col2:
-                            st.markdown("### Totals")
-                            st.metric("Subtotal", f"₹{inv['totals']['subtotal']:,.2f}")
-                            st.metric("CGST", f"₹{inv['totals']['total_cgst']:,.2f}")
-                            st.metric("SGST", f"₹{inv['totals']['total_sgst']:,.2f}")
-                            st.metric("Grand Total", f"₹{inv['totals']['grand_total']:,.2f}")
-                            
-                            # Download button
-                            pdf_url = f"{API_URL}/api/invoice/{inv['invoice_number']}/pdf"
-                            st.markdown(f"[📥 Download PDF]({pdf_url})")
-
-                            st.markdown("---")
-                            # Email invoice section
-                            with st.expander("📧 Email This Invoice"):
-                                with st.form(key=f"email_form_{inv['invoice_number']}"):
-                                    recipient = st.text_input(
-                                        "Recipient Email",
-                                        value=inv['customer'].get('email', ''),
-                                        key=f"email_to_{inv['invoice_number']}"
-                                    )
-                                    
-                                    st.info("⚠️ Gmail requires App Password. Regular password won't work!")
-                                    sender = st.text_input(
-                                        "Your Gmail",
-                                        placeholder="your@gmail.com",
-                                        key=f"email_from_{inv['invoice_number']}"
-                                    )
-                                    sender_pass = st.text_input(
-                                        "Gmail App Password",
-                                        type="password",
-                                        help="Not your Gmail password! Create App Password in Google Account settings.",
-                                        key=f"email_pass_{inv['invoice_number']}"
-                                    )
-                                    
-                                    send_email = st.form_submit_button("📧 Send Email")
-                                    
-                                    if send_email:
-                                        if not recipient or not sender or not sender_pass:
-                                            st.error("Please fill all fields")
-                                        else:
-                                            with st.spinner("Sending email..."):
-                                                try:
-                                                    response = requests.post(
-                                                        f"{API_URL}/api/invoice/{inv['invoice_number']}/send-email",
-                                                        params={
-                                                            "recipient_email": recipient,
-                                                            "sender_email": sender,
-                                                            "sender_password": sender_pass
-                                                        }
-                                                    )
-                                                    
-                                                    if response.status_code == 200:
-                                                        st.success(f"✅ Email sent to {recipient}!")
-                                                    else:
-                                                        st.error(f"❌ {response.json().get('detail', 'Failed to send')}")
-                                                except Exception as e:
-                                                    st.error(f"❌ Error: {e}")
-
-                            # Payment Management Section
-                            with st.expander("💰 Payment Management"):
-                                try:
-                                    # Get payment history
-                                    pay_hist_resp = requests.get(f"{API_URL}/api/invoice/{inv['invoice_number']}/payments")
-                                    if pay_hist_resp.status_code == 200:
-                                        pay_data = pay_hist_resp.json()
-                                        
-                                        action_col1, action_col2, action_col3 = st.columns(3)
-                                        action_col1.metric("Total Amount", f"₹{pay_data['total_amount']:,.2f}")
-                                        action_col2.metric("Total Paid", f"₹{pay_data['total_paid']:,.2f}")
-                                        action_col3.metric("Remaining", f"₹{pay_data['remaining']:,.2f}")
-                                        
-                                        st.markdown(f"**Payment Status:** `{pay_data['status']}`")
-                                        
-                                        # Record Payment Form
-                                        st.markdown("---")
-                                        st.subheader("➕ Record Payment")
-                                        with st.form(key=f"payment_form_{inv['invoice_number']}"):
-                                            pay_amt = st.number_input("Amount (₹)", min_value=1.0, max_value=pay_data['remaining'], value=float(pay_data['remaining']))
-                                            pay_method = st.selectbox("Method", ["UPI", "Cash", "Bank Transfer", "Card", "Cheque"])
-                                            pay_tid = st.text_input("Transaction ID / Ref", placeholder="Optional")
-                                            pay_notes = st.text_input("Notes", placeholder="Optional")
-                                            
-                                            submit_pay = st.form_submit_button("💳 Record Payment")
-                                            
-                                            if submit_pay:
-                                                with st.spinner("Recording payment..."):
-                                                    payment_response = requests.post(
-                                                        f"{API_URL}/api/invoice/{inv['invoice_number']}/payment",
-                                                        params={
-                                                            "amount": pay_amt,
-                                                            "payment_method": pay_method,
-                                                            "transaction_id": pay_tid,
-                                                            "notes": pay_notes
-                                                        }
-                                                    )
-                                                    if payment_response.status_code == 200:
-                                                        st.success("✅ Payment recorded successfully!")
-                                                        st.rerun()
-                                                    else:
-                                                        st.error(f"❌ Error: {payment_response.json().get('detail', 'Failed to record')}")
-                                        
-                                        # Payment History Table
-                                        if pay_data['payments']:
-                                            with st.expander("📜 Payment History"):
-                                                hist_df = pd.DataFrame(pay_data['payments'])
-                                                st.dataframe(hist_df[['date', 'amount', 'method', 'transaction_id']], use_container_width=True)
-                                except Exception as e:
-                                    st.error(f"Error loading payments: {e}")
             else:
-                st.info("📋 No invoices found. Create your first invoice!")
+                invoices = []
+        
+        if invoices:
+            # Display invoices
+            for inv in invoices:
+                status_color = "🔴" if inv['payment_status'] == "Pending" else "🟡" if inv['payment_status'] == "Partial" else "🟢"
+                with st.expander(
+                    f"🧾 {inv['invoice_number']} | {inv['customer']['name']} | ₹{inv['totals']['grand_total']:,.2f} | {status_color} {inv['payment_status']}"
+                ):
+                    col1, col2 = st.columns([2, 1])
+                    
+                    with col1:
+                        st.markdown("### Customer Details")
+                        st.write(f"**Name:** {inv['customer']['name']}")
+                        st.write(f"**Phone:** {inv['customer']['phone']}")
+                        if inv['customer']['email']:
+                            st.write(f"**Email:** {inv['customer']['email']}")
+                        if inv['customer']['gst_number']:
+                            st.write(f"**GST:** {inv['customer']['gst_number']}")
+                        
+                        st.markdown("### Items")
+                        items_df = pd.DataFrame(inv['items'])
+                        st.dataframe(
+                            items_df[['name', 'quantity', 'unit_price', 'gst_rate', 'total_amount']],
+                            use_container_width=True
+                        )
+                    
+                    with col2:
+                        st.markdown("### Totals")
+                        st.metric("Subtotal", f"₹{inv['totals']['subtotal']:,.2f}")
+                        st.metric("CGST", f"₹{inv['totals']['total_cgst']:,.2f}")
+                        st.metric("SGST", f"₹{inv['totals']['total_sgst']:,.2f}")
+                        st.metric("Grand Total", f"₹{inv['totals']['grand_total']:,.2f}")
+                        
+                        # Download with template
+                        st.markdown("### 📥 Download PDF")
+                        template_choice = st.radio(
+                            "Template",
+                            options=["modern", "classic", "minimal"],
+                            format_func=lambda x: x.capitalize(),
+                            horizontal=True,
+                            key=f"template_{inv['invoice_number']}"
+                        )
+                        pdf_url = f"{API_URL}/api/invoice/{inv['invoice_number']}/pdf?template={template_choice}"
+                        st.markdown(f"[📥 Download {template_choice.capitalize()}]({pdf_url})")
+
+                        st.markdown("---")
+                        # Email invoice section
+                        with st.expander("📧 Email This Invoice"):
+                            with st.form(key=f"email_form_{inv['invoice_number']}"):
+                                recipient = st.text_input(
+                                    "Recipient Email",
+                                    value=inv['customer'].get('email', ''),
+                                    key=f"email_to_{inv['invoice_number']}"
+                                )
+                                
+                                st.info("⚠️ Gmail requires App Password. Regular password won't work!")
+                                sender = st.text_input(
+                                    "Your Gmail",
+                                    placeholder="your@gmail.com",
+                                    key=f"email_from_{inv['invoice_number']}"
+                                )
+                                sender_pass = st.text_input(
+                                    "Gmail App Password",
+                                    type="password",
+                                    help="Not your Gmail password! Create App Password in Google Account settings.",
+                                    key=f"email_pass_{inv['invoice_number']}"
+                                )
+                                
+                                send_email = st.form_submit_button("📧 Send Email")
+                                
+                                if send_email:
+                                    if not recipient or not sender or not sender_pass:
+                                        st.error("Please fill all fields")
+                                    else:
+                                        with st.spinner("Sending email..."):
+                                            try:
+                                                response = requests.post(
+                                                    f"{API_URL}/api/invoice/{inv['invoice_number']}/send-email",
+                                                    params={
+                                                        "recipient_email": recipient,
+                                                        "sender_email": sender,
+                                                        "sender_password": sender_pass
+                                                    }
+                                                )
+                                                
+                                                if response.status_code == 200:
+                                                    st.success(f"✅ Email sent to {recipient}!")
+                                                else:
+                                                    st.error(f"❌ {response.json().get('detail', 'Failed to send')}")
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {e}")
+
+                        # Payment Management Section
+                        with st.expander("💰 Payment Management"):
+                            try:
+                                # Get payment history
+                                pay_hist_resp = requests.get(f"{API_URL}/api/invoice/{inv['invoice_number']}/payments")
+                                if pay_hist_resp.status_code == 200:
+                                    pay_data = pay_hist_resp.json()
+                                    
+                                    action_col1, action_col2, action_col3 = st.columns(3)
+                                    action_col1.metric("Total Amount", f"₹{pay_data['total_amount']:,.2f}")
+                                    action_col2.metric("Total Paid", f"₹{pay_data['total_paid']:,.2f}")
+                                    action_col3.metric("Remaining", f"₹{pay_data['remaining']:,.2f}")
+                                    
+                                    st.markdown(f"**Payment Status:** `{pay_data['status']}`")
+                                    
+                                    # Record Payment Form
+                                    st.markdown("---")
+                                    st.subheader("➕ Record Payment")
+                                    with st.form(key=f"payment_form_{inv['invoice_number']}"):
+                                        pay_amt = st.number_input("Amount (₹)", min_value=1.0, max_value=pay_data['remaining'], value=float(pay_data['remaining']), key=f"pay_amt_{inv['invoice_number']}")
+                                        pay_method = st.selectbox("Method", ["UPI", "Cash", "Bank Transfer", "Card", "Cheque"], key=f"pay_method_{inv['invoice_number']}")
+                                        pay_tid = st.text_input("Transaction ID / Ref", placeholder="Optional", key=f"pay_tid_{inv['invoice_number']}")
+                                        pay_notes = st.text_input("Notes", placeholder="Optional", key=f"pay_notes_{inv['invoice_number']}")
+                                        
+                                        submit_pay = st.form_submit_button("💳 Record Payment")
+                                        
+                                        if submit_pay:
+                                            with st.spinner("Recording payment..."):
+                                                payment_response = requests.post(
+                                                    f"{API_URL}/api/invoice/{inv['invoice_number']}/payment",
+                                                    params={
+                                                        "amount": pay_amt,
+                                                        "payment_method": pay_method,
+                                                        "transaction_id": pay_tid,
+                                                        "notes": pay_notes
+                                                    }
+                                                )
+                                                if payment_response.status_code == 200:
+                                                    st.success("✅ Payment recorded successfully!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error(f"❌ Error: {payment_response.json().get('detail', 'Failed to record')}")
+                                    
+                                    # Payment History Table
+                                    if pay_data['payments']:
+                                        with st.expander("📜 Payment History"):
+                                            hist_df = pd.DataFrame(pay_data['payments'])
+                                            st.dataframe(hist_df[['date', 'amount', 'method', 'transaction_id']], use_container_width=True)
+                            except Exception as e:
+                                st.error(f"Error loading payments: {e}")
         else:
-            st.error("Failed to fetch invoices")
+            st.info("📋 No invoices found matching your search criteria")
             
     except Exception as e:
         st.error(f"Error: {e}")

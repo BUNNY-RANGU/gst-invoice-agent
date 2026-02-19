@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, validator
 from typing import List, Optional
+from app.agents.search_agent import SearchAgent
 from datetime import datetime
 from app.agents.bulk_operations import BulkOperations
 from fastapi import UploadFile, File
@@ -48,7 +49,8 @@ excel_exporter = ExcelExporter()
 analytics_agent = AnalyticsAgent()
 # Initialize Bulk Operations
 bulk_ops = BulkOperations()
-
+# Initialize Search Agent
+search_agent = SearchAgent()
 # Initialize Auth Agent
 auth_agent = AuthAgent()
 security = HTTPBearer()
@@ -729,6 +731,119 @@ async def get_gst_rate_breakdown():
     return {
         "success": True,
         **breakdown
+    }
+
+# ============================================================================
+# ADVANCED SEARCH ENDPOINTS
+# ============================================================================
+
+@app.post("/api/search/invoices", tags=["Search"])
+async def search_invoices(
+    date_preset: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    payment_statuses: Optional[List[str]] = None,
+    gst_rates: Optional[List[int]] = None,
+    customer_query: Optional[str] = None,
+    invoice_number: Optional[str] = None,
+    item_query: Optional[str] = None
+):
+    """
+    Advanced search for invoices
+    
+    - date_preset: 'today', 'this_week', 'this_month', 'this_quarter', 'this_year', 'last_30_days'
+    - start_date: Start date (YYYY-MM-DD)
+    - end_date: End date (YYYY-MM-DD)
+    - min_amount: Minimum amount
+    - max_amount: Maximum amount
+    - payment_statuses: List of statuses ['Paid', 'Pending', 'Partial']
+    - gst_rates: List of GST rates [0, 5, 12, 18, 28]
+    - customer_query: Customer name search
+    - invoice_number: Invoice number search
+    - item_query: Item name search
+    
+    Returns filtered invoices
+    """
+    # Get all invoices
+    all_invoices = agent.get_all_invoices()
+    
+    # Build filters dictionary
+    filters = {}
+    
+    if date_preset:
+        filters['date_preset'] = date_preset
+    if start_date:
+        filters['start_date'] = start_date
+    if end_date:
+        filters['end_date'] = end_date
+    if min_amount is not None:
+        filters['min_amount'] = min_amount
+    if max_amount is not None:
+        filters['max_amount'] = max_amount
+    if payment_statuses:
+        filters['payment_statuses'] = payment_statuses
+    if gst_rates:
+        filters['gst_rates'] = gst_rates
+    if customer_query:
+        filters['customer_query'] = customer_query
+    if invoice_number:
+        filters['invoice_number'] = invoice_number
+    if item_query:
+        filters['item_query'] = item_query
+    
+    # Apply filters
+    filtered = search_agent.advanced_search(all_invoices, filters)
+    
+    # Generate summary
+    summary = search_agent.get_filter_summary(filters, len(filtered))
+    
+    return {
+        "success": True,
+        "total": len(all_invoices),
+        "filtered": len(filtered),
+        "summary": summary,
+        "filters_applied": filters,
+        "invoices": filtered
+    }
+
+
+@app.get("/api/search/quick-filters", tags=["Search"])
+async def get_quick_filters():
+    """
+    Get available quick filter options
+    
+    Returns predefined filter options
+    """
+    return {
+        "success": True,
+        "date_presets": [
+            {"id": "today", "label": "Today"},
+            {"id": "this_week", "label": "This Week"},
+            {"id": "this_month", "label": "This Month"},
+            {"id": "this_quarter", "label": "This Quarter"},
+            {"id": "this_year", "label": "This Year"},
+            {"id": "last_30_days", "label": "Last 30 Days"}
+        ],
+        "amount_ranges": [
+            {"id": "0-10000", "label": "Under ₹10,000", "min": 0, "max": 10000},
+            {"id": "10000-50000", "label": "₹10,000 - ₹50,000", "min": 10000, "max": 50000},
+            {"id": "50000-100000", "label": "₹50,000 - ₹1,00,000", "min": 50000, "max": 100000},
+            {"id": "100000+", "label": "Above ₹1,00,000", "min": 100000, "max": None}
+        ],
+        "payment_statuses": [
+            {"id": "Paid", "label": "✅ Paid"},
+            {"id": "Pending", "label": "⏳ Pending"},
+            {"id": "Partial", "label": "💰 Partial"}
+        ],
+        "gst_rates": [
+            {"id": 0, "label": "0% GST"},
+            {"id": 5, "label": "5% GST"},
+            {"id": 12, "label": "12% GST"},
+            {"id": 18, "label": "18% GST"},
+            {"id": 28, "label": "28% GST"}
+        ]
     }
   # ============================================================================
 # BULK OPERATIONS ENDPOINTS
