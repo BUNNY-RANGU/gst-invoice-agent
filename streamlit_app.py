@@ -151,7 +151,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "ℹ️ About"]
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "ℹ️ About"]
 )
 
 st.sidebar.markdown("---")
@@ -753,6 +753,186 @@ elif page == "📈 Analytics":
     except Exception as e:
         st.error(f"Error: {e}")
 
+ 
+# ====================
+# PAGE 6: BULK OPERATIONS
+# ====================
+elif page == "📦 Bulk Operations":
+    st.markdown('<h1 class="main-header">📦 Bulk Operations</h1>', unsafe_allow_html=True)
+    
+    st.info("💡 Import/Export multiple customers and invoices at once!")
+    
+    tab1, tab2, tab3 = st.tabs(["📥 Import", "📤 Export", "📋 Templates"])
+    
+    with tab1:
+        st.subheader("📥 Bulk Import")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Import Customers")
+            st.write("Upload CSV file with customer data")
+            
+            customer_file = st.file_uploader(
+                "Choose CSV file",
+                type=['csv'],
+                key="customer_upload"
+            )
+            
+            if customer_file:
+                if st.button("🚀 Import Customers", use_container_width=True):
+                    with st.spinner("Importing customers..."):
+                        try:
+                            files = {'file': customer_file.getvalue()}
+                            response = requests.post(
+                                f"{API_URL}/api/bulk/import-customers",
+                                files={'file': customer_file}
+                            )
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.success(f"✅ {result['message']}")
+                                st.info(f"Total: {result['total']} | Imported: {result['imported']}")
+                                
+                                if result['errors']:
+                                    with st.expander("⚠️ Errors"):
+                                        for err in result['errors']:
+                                            st.warning(err)
+                            else:
+                                st.error(f"❌ {response.json().get('detail', 'Import failed')}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+        
+        with col2:
+            st.markdown("### Import Invoices")
+            st.write("Upload CSV file with invoice data")
+            
+            invoice_file = st.file_uploader(
+                "Choose CSV file",
+                type=['csv'],
+                key="invoice_upload"
+            )
+            
+            if invoice_file:
+                if st.button("🚀 Import Invoices", use_container_width=True):
+                    with st.spinner("Creating invoices..."):
+                        try:
+                            response = requests.post(
+                                f"{API_URL}/api/bulk/import-invoices",
+                                files={'file': invoice_file}
+                            )
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.success(f"✅ {result['message']}")
+                                st.balloons()
+                                st.info(f"Total: {result['total']} | Created: {result['created']}")
+                                
+                                if result['errors']:
+                                    with st.expander("⚠️ Errors"):
+                                        for err in result['errors']:
+                                            st.warning(err)
+                            else:
+                                st.error(f"❌ {response.json().get('detail', 'Import failed')}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+    
+    with tab2:
+        st.subheader("📤 Bulk Export")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Export All Customers")
+            st.write("Download all customer data as CSV")
+            
+            if st.button("📥 Download Customer CSV", use_container_width=True):
+                try:
+                    response = requests.get(f"{API_URL}/api/bulk/export-customers-csv")
+                    if response.status_code == 200:
+                        st.download_button(
+                            "💾 Save CSV",
+                            response.content,
+                            "customers_export.csv",
+                            "text/csv"
+                        )
+                        st.success("✅ Ready to download!")
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        
+        with col2:
+            st.markdown("### Export All Invoices")
+            st.write("Download all invoice data as CSV")
+            
+            if st.button("📥 Download Invoice CSV", use_container_width=True):
+                try:
+                    response = requests.get(f"{API_URL}/api/bulk/export-invoices-csv")
+                    if response.status_code == 200:
+                        st.download_button(
+                            "💾 Save CSV",
+                            response.content,
+                            "invoices_export.csv",
+                            "text/csv"
+                        )
+                        st.success("✅ Ready to download!")
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    
+    with tab3:
+        st.subheader("📋 Download Templates")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Customer CSV Template")
+            st.write("Download sample CSV with correct format")
+            
+            st.code("""
+name,phone,email,address,gst_number,state
+John Doe,9876543210,john@example.com,Mumbai,27ABCDE1234F1Z5,Maharashtra
+            """, language="csv")
+            
+            if st.button("📥 Download Template", key="customer_template", use_container_width=True):
+                try:
+                    response = requests.get(f"{API_URL}/api/bulk/sample-customer-csv")
+                    if response.status_code == 200:
+                        st.download_button(
+                            "💾 Save Template",
+                            response.content,
+                            "sample_customers.csv",
+                            "text/csv"
+                        )
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        
+        with col2:
+            st.markdown("### Invoice CSV Template")
+            st.write("Download sample CSV with correct format")
+            
+            st.code("""
+customer_name,customer_phone,item_name,item_price,quantity,gst_rate
+John Doe,9876543210,Laptop,50000,1,18
+            """, language="csv")
+            
+            if st.button("📥 Download Template", key="invoice_template", use_container_width=True):
+                try:
+                    response = requests.get(f"{API_URL}/api/bulk/sample-invoice-csv")
+                    if response.status_code == 200:
+                        st.download_button(
+                            "💾 Save Template",
+                            response.content,
+                            "sample_invoices.csv",
+                            "text/csv"
+                        )
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    
+    st.markdown("---")
+    st.info("💡 **How to use:**\n1. Download template\n2. Fill with your data\n3. Upload CSV\n4. Import!")
 
 # ====================
 # PAGE 6: ABOUT
