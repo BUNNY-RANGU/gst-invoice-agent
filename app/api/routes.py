@@ -20,6 +20,7 @@ from fastapi import UploadFile, File
 from app.agents.notification_agent import NotificationAgent
 from app.agents.audit_agent import AuditAgent
 from fastapi import Request
+from app.agents.recurring_agent import RecurringAgent
 import sys
 import os
 from fastapi.responses import Response
@@ -52,6 +53,8 @@ excel_exporter = ExcelExporter()
 analytics_agent = AnalyticsAgent()
 # Initialize Audit Agent
 audit_agent = AuditAgent()
+# Initialize Recurring Agent
+recurring_agent = RecurringAgent()
 # Initialize Notification Agent
 notification_agent = NotificationAgent()
 # Initialize Bulk Operations
@@ -780,6 +783,165 @@ async def get_gst_rate_breakdown():
         **breakdown
     }
      
+
+     # ============================================================================
+# RECURRING INVOICE ENDPOINTS
+# ============================================================================
+
+@app.post("/api/recurring/create", tags=["Recurring Invoices"])
+async def create_recurring_invoice(
+    template_name: str,
+    customer_name: str,
+    customer_phone: str,
+    customer_email: str = "",
+    customer_address: str = "",
+    items: str = "",  # JSON string of items
+    frequency: str = "monthly",
+    start_date: str = "",
+    end_date: str = None,
+    auto_send: bool = False,
+    notes: str = ""
+):
+    """
+    Create recurring invoice template
+    
+    - template_name: Name for this recurring invoice
+    - frequency: daily, weekly, biweekly, monthly, quarterly, yearly
+    - start_date: When to start (YYYY-MM-DD)
+    - end_date: When to stop (optional, YYYY-MM-DD)
+    - auto_send: Auto-send via email when generated
+    """
+    try:
+        # Parse items
+        import json as json_lib
+        items_list = json_lib.loads(items) if items else []
+        
+        customer_data = {
+            'name': customer_name,
+            'phone': customer_phone,
+            'email': customer_email,
+            'address': customer_address
+        }
+        
+        result = recurring_agent.create_recurring_invoice(
+            template_name=template_name,
+            customer_data=customer_data,
+            items=items_list,
+            frequency=frequency,
+            start_date=start_date,
+            end_date=end_date,
+            auto_send=auto_send,
+            notes=notes
+        )
+        
+        if not result['success']:
+            raise HTTPException(status_code=400, detail=result['error'])
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/recurring/all", tags=["Recurring Invoices"])
+async def get_all_recurring_invoices():
+    """
+    Get all recurring invoice templates
+    
+    - Returns list of all recurring invoice configurations
+    """
+    recurring_list = recurring_agent.get_all_recurring()
+    
+    return {
+        "success": True,
+        "count": len(recurring_list),
+        "recurring_invoices": recurring_list
+    }
+
+
+@app.get("/api/recurring/due", tags=["Recurring Invoices"])
+async def get_due_recurring_invoices():
+    """
+    Get recurring invoices due for generation
+    
+    - Returns invoices that should be generated today
+    """
+    due = recurring_agent.get_due_invoices()
+    
+    return {
+        "success": True,
+        "count": len(due),
+        "due_invoices": due
+    }
+
+
+@app.post("/api/recurring/{template_id}/generate", tags=["Recurring Invoices"])
+async def generate_from_recurring_template(template_id: int):
+    """
+    Manually generate invoice from recurring template
+    
+    - Creates an invoice based on the template
+    - Updates next generation date
+    """
+    # Generate invoice data
+    result = recurring_agent.generate_invoice_from_template(template_id)
+    
+    if not result['success']:
+        raise HTTPException(status_code=400, detail=result['error'])
+    
+    # Create actual invoice using invoice agent
+    invoice_result = agent.create_invoice(
+        customer=result['invoice_data']['customer'],
+        items=result['invoice_data']['items'],
+        notes=result['invoice_data']['notes']
+    )
+    
+    if not invoice_result['success']:
+        raise HTTPException(status_code=500, detail=invoice_result['error'])
+    
+    return {
+        "success": True,
+        "message": "Invoice generated from recurring template",
+        "invoice": invoice_result['invoice'],
+        "template_id": template_id
+    }
+
+
+@app.post("/api/recurring/{template_id}/status", tags=["Recurring Invoices"])
+async def update_recurring_status(
+    template_id: int,
+    status: str
+):
+    """
+    Update recurring invoice status
+    
+    - status: active, paused, cancelled, completed
+    """
+    if status not in ['active', 'paused', 'cancelled', 'completed']:
+        raise HTTPException(
+            status_code=400,
+            detail="Status must be: active, paused, cancelled, or completed"
+        )
+    
+    result = recurring_agent.update_status(template_id, status)
+    
+    if not result['success']:
+        raise HTTPException(status_code=400, detail=result['error'])
+    
+    return result
+
+
+@app.get("/api/recurring/frequencies", tags=["Recurring Invoices"])
+async def get_frequency_options():
+    """
+    Get available frequency options
+    
+    - Returns list of supported frequencies
+    """
+    return {
+        "success": True,
+        "frequencies": recurring_agent.FREQUENCIES
+    }
 
 # ============================================================================
 # AUDIT LOG ENDPOINTS

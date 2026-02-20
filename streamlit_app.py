@@ -151,9 +151,8 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "📜 Audit Logs", "ℹ️ About"]
-)  
-
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "📜 Audit Logs", "🔄 Recurring", "ℹ️ About"]
+)
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🚀 Quick Stats")
 
@@ -1540,6 +1539,271 @@ elif page == "📜 Audit Logs":
         
         st.markdown("---")
         st.info("💡 **Compliance Tips:**\n- Export audit logs regularly for backup\n- Review failed actions for security issues\n- Track user activity for accountability\n- Maintain logs for regulatory compliance")
+
+# ====================
+# PAGE 9: RECURRING INVOICES
+# ====================
+elif page == "🔄 Recurring":
+    st.markdown('<h1 class="main-header">🔄 Recurring Invoices</h1>', unsafe_allow_html=True)
+    
+    st.info("💡 Automate invoice generation for subscriptions, rent, retainers, and recurring services")
+    
+    tab1, tab2, tab3 = st.tabs(["📋 All Templates", "➕ Create New", "⚡ Generate Now"])
+    
+    # Tab 1: All Recurring Templates
+    with tab1:
+        st.subheader("📋 Recurring Invoice Templates")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/recurring/all")
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['count'] > 0:
+                    st.success(f"📊 {data['count']} recurring invoice template(s)")
+                    
+                    for rec in data['recurring_invoices']:
+                        status_icon = {
+                            'active': '🟢',
+                            'paused': '🟡',
+                            'completed': '✅',
+                            'cancelled': '🔴'
+                        }.get(rec['status'], '⚪')
+                        
+                        with st.expander(f"{status_icon} {rec['template_name']} - {rec['frequency_name']} - Next: {rec['next_invoice_date']}"):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.write(f"**Customer:** {rec['customer_name']}")
+                                st.write(f"**Frequency:** {rec['frequency_name']}")
+                                st.write(f"**Start Date:** {rec['start_date']}")
+                                st.write(f"**End Date:** {rec['end_date'] or 'No end date'}")
+                                st.write(f"**Next Invoice:** {rec['next_invoice_date']}")
+                                st.write(f"**Auto-Send:** {'Yes' if rec['auto_send'] else 'No'}")
+                                st.write(f"**Generated:** {rec['invoices_generated']} invoice(s)")
+                                if rec['last_generated']:
+                                    st.write(f"**Last Generated:** {rec['last_generated']}")
+                            
+                            with col2:
+                                st.markdown(f"**Status:** `{rec['status']}`")
+                                
+                                # Status controls
+                                if rec['status'] == 'active':
+                                    if st.button("⏸️ Pause", key=f"pause_{rec['id']}", use_container_width=True):
+                                        try:
+                                            status_response = requests.post(
+                                                f"{API_URL}/api/recurring/{rec['id']}/status",
+                                                params={"status": "paused"}
+                                            )
+                                            if status_response.status_code == 200:
+                                                st.success("✅ Paused!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
+                                
+                                elif rec['status'] == 'paused':
+                                    if st.button("▶️ Resume", key=f"resume_{rec['id']}", use_container_width=True):
+                                        try:
+                                            status_response = requests.post(
+                                                f"{API_URL}/api/recurring/{rec['id']}/status",
+                                                params={"status": "active"}
+                                            )
+                                            if status_response.status_code == 200:
+                                                st.success("✅ Resumed!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
+                                
+                                # Generate now
+                                if rec['status'] in ['active', 'paused']:
+                                    if st.button("⚡ Generate Now", key=f"gen_{rec['id']}", use_container_width=True):
+                                        with st.spinner("Generating invoice..."):
+                                            try:
+                                                gen_response = requests.post(
+                                                    f"{API_URL}/api/recurring/{rec['id']}/generate"
+                                                )
+                                                if gen_response.status_code == 200:
+                                                    result = gen_response.json()
+                                                    st.balloons()
+                                                    st.success(f"✅ Invoice {result['invoice']['invoice_number']} generated!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error("Generation failed")
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
+                                
+                                # Cancel
+                                if rec['status'] not in ['cancelled', 'completed']:
+                                    if st.button("🗑️ Cancel", key=f"cancel_{rec['id']}", use_container_width=True):
+                                        try:
+                                            status_response = requests.post(
+                                                f"{API_URL}/api/recurring/{rec['id']}/status",
+                                                params={"status": "cancelled"}
+                                            )
+                                            if status_response.status_code == 200:
+                                                st.success("✅ Cancelled!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
+                else:
+                    st.info("📋 No recurring invoices yet. Create your first one!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 2: Create New Recurring Invoice
+    with tab2:
+        st.subheader("➕ Create Recurring Invoice Template")
+        
+        with st.form("recurring_form"):
+            template_name = st.text_input("Template Name*", placeholder="Monthly Rent - ABC Corp")
+            
+            st.markdown("### 👤 Customer Details")
+            col1, col2 = st.columns(2)
+            with col1:
+                rec_customer_name = st.text_input("Customer Name*", placeholder="ABC Corporation", key="rec_cust_name")
+                rec_customer_phone = st.text_input("Phone*", placeholder="9876543210", max_chars=10, key="rec_cust_phone")
+            with col2:
+                rec_customer_email = st.text_input("Email", placeholder="abc@example.com", key="rec_cust_email")
+                rec_customer_address = st.text_area("Address", placeholder="Mumbai", height=100, key="rec_cust_addr")
+            
+            st.markdown("### 🛒 Invoice Items")
+            num_rec_items = st.number_input("Number of Items", min_value=1, max_value=10, value=1, key="num_rec_items")
+            
+            rec_items = []
+            for i in range(num_rec_items):
+                st.markdown(f"**Item {i+1}**")
+                rec_col1, rec_col2, rec_col3, rec_col4 = st.columns(4)
+                
+                with rec_col1:
+                    rec_item_name = st.text_input(f"Name*", key=f"rec_item_name_{i}", placeholder="Service")
+                with rec_col2:
+                    rec_item_price = st.number_input(f"Price (₹)*", key=f"rec_item_price_{i}", min_value=0.0, value=1000.0, step=100.0)
+                with rec_col3:
+                    rec_item_qty = st.number_input(f"Quantity*", key=f"rec_item_qty_{i}", min_value=1, value=1)
+                with rec_col4:
+                    rec_item_gst = st.selectbox(f"GST %*", key=f"rec_item_gst_{i}", options=[0, 5, 12, 18, 28], index=3)
+                
+                if rec_item_name:
+                    rec_items.append({
+                        "name": rec_item_name,
+                        "price": rec_item_price,
+                        "quantity": rec_item_qty,
+                        "gst_rate": rec_item_gst
+                    })
+                
+                st.markdown("---")
+            
+            st.markdown("### 🔄 Recurrence Settings")
+            sched_col1, sched_col2, sched_col3 = st.columns(3)
+            
+            with sched_col1:
+                rec_frequency = st.selectbox(
+                    "Frequency*",
+                    options=["daily", "weekly", "biweekly", "monthly", "quarterly", "yearly"],
+                    format_func=lambda x: {
+                        "daily": "Daily",
+                        "weekly": "Weekly",
+                        "biweekly": "Bi-weekly (Every 2 weeks)",
+                        "monthly": "Monthly",
+                        "quarterly": "Quarterly (Every 3 months)",
+                        "yearly": "Yearly"
+                    }[x],
+                    index=3,
+                    key="rec_frequency"
+                )
+            
+            with sched_col2:
+                rec_start_date = st.date_input("Start Date*", key="rec_start")
+            
+            with sched_col3:
+                rec_has_end = st.checkbox("Set End Date", key="rec_has_end")
+                if rec_has_end:
+                    rec_end_date = st.date_input("End Date", key="rec_end")
+                else:
+                    rec_end_date = None
+            
+            rec_auto_send = st.checkbox("Auto-send via email when generated", key="rec_auto_send")
+            rec_notes = st.text_area("Notes", placeholder="Thank you for your business!", key="rec_notes")
+            
+            rec_submitted = st.form_submit_button("🔄 Create Recurring Invoice", use_container_width=True)
+            
+            if rec_submitted:
+                if not template_name or not rec_customer_name or not rec_customer_phone:
+                    st.error("❌ Please fill required fields!")
+                elif len(rec_items) == 0:
+                    st.error("❌ Please add at least one item!")
+                else:
+                    import json
+                    
+                    with st.spinner("Creating recurring invoice..."):
+                        try:
+                            response = requests.post(
+                                f"{API_URL}/api/recurring/create",
+                                params={
+                                    "template_name": template_name,
+                                    "customer_name": rec_customer_name,
+                                    "customer_phone": rec_customer_phone,
+                                    "customer_email": rec_customer_email,
+                                    "customer_address": rec_customer_address,
+                                    "items": json.dumps(rec_items),
+                                    "frequency": rec_frequency,
+                                    "start_date": str(rec_start_date),
+                                    "end_date": str(rec_end_date) if rec_end_date else None,
+                                    "auto_send": rec_auto_send,
+                                    "notes": rec_notes
+                                }
+                            )
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.balloons()
+                                st.success(f"✅ {result['message']}")
+                                st.info(f"Next invoice will be generated on: {result['next_invoice_date']}")
+                            else:
+                                st.error(f"❌ {response.json().get('detail', 'Failed')}")
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+    
+    # Tab 3: Generate Due Invoices
+    with tab3:
+        st.subheader("⚡ Generate Due Invoices")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/recurring/due")
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['count'] > 0:
+                    st.warning(f"⚡ {data['count']} recurring invoice(s) due for generation!")
+                    
+                    for due in data['due_invoices']:
+                        with st.expander(f"🔄 {due['template_name']} - Due: {due['next_invoice_date']}"):
+                            st.write(f"**Frequency:** {due['frequency']}")
+                            st.write(f"**Auto-send:** {'Yes' if due['auto_send'] else 'No'}")
+                            
+                            if st.button(f"⚡ Generate Invoice", key=f"gen_due_{due['id']}", use_container_width=True):
+                                with st.spinner("Generating..."):
+                                    try:
+                                        gen_response = requests.post(
+                                            f"{API_URL}/api/recurring/{due['id']}/generate"
+                                        )
+                                        if gen_response.status_code == 200:
+                                            result = gen_response.json()
+                                            st.balloons()
+                                            st.success(f"✅ Invoice {result['invoice']['invoice_number']} generated!")
+                                            st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+                else:
+                    st.success("✅ No invoices due for generation right now!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+        
+        st.markdown("---")
+        st.info("💡 **Tip:** Set up a daily cron job or scheduler to auto-generate due invoices!")
+
 
 # ====================
 # PAGE 6: ABOUT

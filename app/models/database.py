@@ -25,7 +25,8 @@ class Customer(Base):
     address = Column(Text)
     gst_number = Column(String(15))
     state = Column(String(50), default="Telangana")
-    
+    # Add this line to Customer class
+    recurring_invoices = relationship("RecurringInvoice", back_populates="customer")
     # Relationship
     invoices = relationship("Invoice", back_populates="customer")
     
@@ -170,6 +171,44 @@ class User(Base):
     
     def __repr__(self):
         return f"<User(username='{self.username}', role='{self.role}')>"
+
+class RecurringInvoice(Base):
+    """Recurring invoice template"""
+    __tablename__ = 'recurring_invoices'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    template_name = Column(String(100), nullable=False)
+    customer_id = Column(Integer, ForeignKey('customers.id'))
+    
+    # Recurrence settings
+    frequency = Column(String(20))  # daily, weekly, monthly, yearly
+    interval = Column(Integer, default=1)  # Every X days/weeks/months
+    start_date = Column(String(20))  # YYYY-MM-DD
+    end_date = Column(String(20))  # YYYY-MM-DD (optional)
+    next_invoice_date = Column(String(20))  # YYYY-MM-DD
+    
+    # Invoice template data (stored as JSON)
+    invoice_template = Column(Text)  # JSON with customer, items, notes
+    
+    # Status
+    status = Column(String(20), default="active")  # active, paused, completed, cancelled
+    auto_send = Column(String(10), default="false")  # Auto-send via email
+    
+    # Tracking
+    invoices_generated = Column(Integer, default=0)
+    last_generated = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Relationships
+    customer = relationship("Customer", back_populates="recurring_invoices")
+    
+    def __repr__(self):
+        return f"<RecurringInvoice(name='{self.template_name}', frequency='{self.frequency}')>"
+
+
+# Add to Customer model (find the Customer class and add this relationship)
+# Customer.recurring_invoices = relationship("RecurringInvoice", back_populates="customer")
 
 # Create engine
 engine = create_engine(
