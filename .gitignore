@@ -1,14 +1,40 @@
-venv/
+cat > .gitignore << 'EOF'
+# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Database
 *.db
 *.sqlite
-*.dmg
-*.exe
-exports/
-invoices/
-*.xlsx
-*.pdf
+*.sqlite3
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backups
+backups/
+
+# PDFs
+invoices/*.pdf
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# OS
 .DS_Store
 Thumbs.db
+EOF
