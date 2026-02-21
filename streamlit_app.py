@@ -151,7 +151,7 @@ st.sidebar.markdown("---")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "📜 Audit Logs", "🔄 Recurring", "ℹ️ About"]
+    ["📊 Dashboard", "➕ Create Invoice", "📋 View Invoices", "📥 Export Reports", "📈 Analytics", "📦 Bulk Operations", "🔔 Notifications", "📜 Audit Logs", "🔄 Recurring", "💾 Backup", "ℹ️ About"]
 )
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🚀 Quick Stats")
@@ -1803,6 +1803,189 @@ elif page == "🔄 Recurring":
         
         st.markdown("---")
         st.info("💡 **Tip:** Set up a daily cron job or scheduler to auto-generate due invoices!")
+
+# ====================
+# PAGE 10: BACKUP & RESTORE
+# ====================
+elif page == "💾 Backup":
+    st.markdown('<h1 class="main-header">💾 Backup & Restore</h1>', unsafe_allow_html=True)
+    
+    st.info("🛡️ Protect your data with automated backups and easy restore")
+    
+    tab1, tab2, tab3 = st.tabs(["📋 All Backups", "➕ Create Backup", "📤 Export Data"])
+    
+    # Tab 1: All Backups
+    with tab1:
+        st.subheader("📋 Available Backups")
+        
+        try:
+            response = requests.get(f"{API_URL}/api/backup/list")
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['count'] > 0:
+                    st.success(f"📊 {data['count']} backup(s) available")
+                    
+                    for backup in data['backups']:
+                        with st.expander(f"💾 {backup['filename']} - {backup['size_mb']} MB - {backup['created_at']}"):
+                            col1, col2 = st.columns([2, 1])
+                            
+                            with col1:
+                                st.write(f"**Filename:** {backup['filename']}")
+                                st.write(f"**Size:** {backup['size_mb']} MB ({backup['size_bytes']:,} bytes)")
+                                st.write(f"**Created:** {backup['created_at']}")
+                                
+                                # Get detailed info
+                                try:
+                                    info_response = requests.get(f"{API_URL}/api/backup/info/{backup['filename']}")
+                                    if info_response.status_code == 200:
+                                        info = info_response.json()
+                                        st.markdown("**Records:**")
+                                        for key, count in info['records'].items():
+                                            st.write(f"- {key.replace('_', ' ').title()}: {count}")
+                                except:
+                                    pass
+                            
+                            with col2:
+                                # Download button
+                                if st.button("📥 Download", key=f"dl_{backup['filename']}", use_container_width=True):
+                                    try:
+                                        dl_response = requests.get(f"{API_URL}/api/backup/download/{backup['filename']}")
+                                        if dl_response.status_code == 200:
+                                            st.download_button(
+                                                "💾 Save Backup",
+                                                dl_response.content,
+                                                backup['filename'],
+                                                "application/json",
+                                                use_container_width=True
+                                            )
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+                                
+                                # Restore button
+                                if st.button("🔄 Restore", key=f"restore_{backup['filename']}", use_container_width=True):
+                                    st.warning("⚠️ Restoring will add backup data to current database!")
+                                    if st.checkbox(f"Confirm restore from {backup['filename']}", key=f"confirm_{backup['filename']}"):
+                                        with st.spinner("Restoring..."):
+                                            try:
+                                                restore_response = requests.post(
+                                                    f"{API_URL}/api/backup/restore/{backup['filename']}",
+                                                    params={"restore_users": False}
+                                                )
+                                                if restore_response.status_code == 200:
+                                                    result = restore_response.json()
+                                                    st.success("✅ Backup restored!")
+                                                    st.json(result['restored_records'])
+                                                    st.balloons()
+                                                else:
+                                                    st.error("Restore failed")
+                                            except Exception as e:
+                                                st.error(f"Error: {e}")
+                                
+                                # Delete button
+                                if st.button("🗑️ Delete", key=f"delete_{backup['filename']}", use_container_width=True):
+                                    if st.checkbox(f"Confirm delete {backup['filename']}", key=f"confirm_del_{backup['filename']}"):
+                                        try:
+                                            del_response = requests.delete(f"{API_URL}/api/backup/delete/{backup['filename']}")
+                                            if del_response.status_code == 200:
+                                                st.success("✅ Backup deleted!")
+                                                st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Error: {e}")
+                else:
+                    st.info("📋 No backups yet. Create your first backup!")
+        except Exception as e:
+            st.error(f"Error: {e}")
+    
+    # Tab 2: Create Backup
+    with tab2:
+        st.subheader("➕ Create New Backup")
+        
+        st.write("Create a complete backup of all your data including:")
+        st.markdown("""
+        - ✅ All customers
+        - ✅ All invoices with items
+        - ✅ All payments
+        - ✅ All recurring invoices
+        - ✅ All audit logs
+        - ✅ User accounts (optional)
+        """)
+        
+        backup_name = st.text_input("Backup Name (Optional)", placeholder="monthly_backup")
+        
+        if st.button("💾 Create Backup Now", type="primary", use_container_width=True):
+            with st.spinner("Creating backup..."):
+                try:
+                    params = {}
+                    if backup_name:
+                        params['backup_name'] = backup_name
+                    
+                    response = requests.post(f"{API_URL}/api/backup/create", params=params)
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.balloons()
+                        st.success(f"✅ {result['message']}")
+                        
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Filename", result['filename'])
+                        col2.metric("Size", f"{result['size_mb']} MB")
+                        col3.metric("Records", sum(result['records'].values()))
+                        
+                        st.markdown("### 📊 Backup Contents:")
+                        for key, count in result['records'].items():
+                            st.write(f"**{key.replace('_', ' ').title()}:** {count}")
+                        
+                        # Download button
+                        st.markdown("---")
+                        dl_response = requests.get(f"{API_URL}/api/backup/download/{result['filename']}")
+                        if dl_response.status_code == 200:
+                            st.download_button(
+                                "📥 Download Backup File",
+                                dl_response.content,
+                                result['filename'],
+                                "application/json",
+                                use_container_width=True
+                            )
+                    else:
+                        st.error("Backup creation failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        
+        st.markdown("---")
+        st.info("💡 **Best Practices:**\n- Create backups before major updates\n- Keep backups in multiple locations\n- Schedule regular automated backups\n- Test restore process periodically")
+    
+    # Tab 3: Export Data
+    with tab3:
+        st.subheader("📤 Export Data to CSV")
+        
+        st.write("Export all data as CSV files for:")
+        st.markdown("""
+        - 📊 Data analysis
+        - 📈 External reporting
+        - 🔄 Migration to other systems
+        - 📋 Spreadsheet manipulation
+        """)
+        
+        if st.button("📤 Export All Data as CSV", use_container_width=True):
+            with st.spinner("Exporting..."):
+                try:
+                    response = requests.get(f"{API_URL}/api/backup/export-csv")
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.success("✅ Data exported to CSV!")
+                        st.write(f"**Export Directory:** {result['export_dir']}")
+                        st.write(f"**Files Created:** {', '.join(result['files'])}")
+                        st.info("📁 Files saved in: " + result['export_dir'])
+                    else:
+                        st.error("Export failed")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        
+        st.markdown("---")
+        st.warning("⚠️ **Note:** CSV exports are saved on the server. Download JSON backups for complete data portability.")
 
 
 # ====================

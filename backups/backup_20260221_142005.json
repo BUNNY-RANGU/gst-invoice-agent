@@ -1,0 +1,482 @@
+{
+  "metadata": {
+    "backup_date": "2026-02-21T14:20:05.818152",
+    "backup_name": "auto",
+    "version": "1.0"
+  },
+  "customers": [
+    {
+      "id": 1,
+      "name": "bunny",
+      "phone": "9985784511",
+      "email": "bunnyrangu29@gmail.com",
+      "address": "hyd\n",
+      "gst_number": "",
+      "state": "Telangana",
+      "created_at": "2026-02-18T13:58:04.680171"
+    },
+    {
+      "id": 2,
+      "name": "rahul",
+      "phone": "5878451222",
+      "email": "rahul@example.com",
+      "address": "hyd",
+      "gst_number": "",
+      "state": "Telangana",
+      "created_at": "2026-02-19T10:49:56.800409"
+    },
+    {
+      "id": 3,
+      "name": "ABC Corporation",
+      "phone": "9876543210",
+      "email": "abc@example.com",
+      "address": "Mumbai",
+      "gst_number": null,
+      "state": "Telangana",
+      "created_at": "2026-02-19T15:09:45.926548"
+    }
+  ],
+  "invoices": [
+    {
+      "id": 1,
+      "invoice_number": "INV-2026-1000",
+      "date": "2026-02-18",
+      "due_date": null,
+      "time": "13:58:04",
+      "customer_id": 1,
+      "customer": {
+        "name": "bunny",
+        "phone": "9985784511",
+        "email": "bunnyrangu29@gmail.com",
+        "address": "hyd\n",
+        "gst_number": "",
+        "state": "Telangana"
+      },
+      "items": [
+        {
+          "name": "lenova ideapad slim3",
+          "description": "my i7 processor  laptop",
+          "quantity": 1,
+          "unit_price": 60000.0,
+          "gst_rate": 5.0,
+          "cgst_amount": 1500.0,
+          "sgst_amount": 1500.0,
+          "total_amount": 63000.0
+        }
+      ],
+      "totals": {
+        "subtotal": 60000.0,
+        "total_cgst": 1500.0,
+        "total_sgst": 1500.0,
+        "total_gst": 3000.0,
+        "grand_total": 63000.0,
+        "total_items": 1,
+        "total_quantity": 1
+      },
+      "notes": "",
+      "payment_status": "Paid",
+      "payment_method": "UPI",
+      "status": "DRAFT",
+      "created_at": "2026-02-18T13:58:04.702849",
+      "updated_at": "2026-02-18T14:00:18.915505"
+    },
+    {
+      "id": 2,
+      "invoice_number": "INV-2026-1001",
+      "date": "2026-02-19",
+      "due_date": null,
+      "time": "10:20:49",
+      "customer_id": 1,
+      "customer": {
+        "name": "bunny",
+        "phone": "9985784511",
+        "email": "bunnyrangu29@gmail.com",
+        "address": "hyd\n",
+        "gst_number": "",
+        "state": "Telangana"
+      },
+      "items": [
+        {
+          "name": "hp ",
+          "description": "",
+          "quantity": 1,
+          "unit_price": 58000.0,
+          "gst_rate": 12.0,
+          "cgst_amount": 3480.0,
+          "sgst_amount": 3480.0,
+          "total_amount": 64960.0
+        }
+      ],
+      "totals": {
+        "subtotal": 58000.0,
+        "total_cgst": 3480.0,
+        "total_sgst": 3480.0,
+        "total_gst": 6960.0,
+        "grand_total": 64960.0,
+        "total_items": 1,
+        "total_quantity": 1
+      },
+      "notes": "",
+      "payment_status": "Pending",
+      "payment_method": null,
+      "status": "DRAFT",
+      "created_at": "2026-02-19T10:20:49.907635",
+      "updated_at": "2026-02-19T10:20:49.907638"
+    },
+    {
+      "id": 3,
+      "invoice_number": "INV-2026-1002",
+      "date": "2026-02-19",
+      "due_date": null,
+      "time": "10:48:14",
+      "customer_id": 1,
+      "customer": {
+        "name": "bunny",
+        "phone": "9985784511",
+        "email": "bunnyrangu29@gmail.com",
+        "address": "hyd\n",
+        "gst_number": "",
+        "state": "Telangana"
+      },
+      "items": [
+        {
+          "name": "dell",
+          "description": "",
+          "quantity": 1,
+          "unit_price": 64000.0,
+          "gst_rate": 5.0,
+          "cgst_amount": 1600.0,
+          "sgst_amount": 1600.0,
+          "total_amount": 67200.0
+        }
+      ],
+      "totals": {
+        "subtotal": 64000.0,
+        "total_cgst": 1600.0,
+        "total_sgst": 1600.0,
+        "total_gst": 3200.0,
+        "grand_total": 67200.0,
+        "total_items": 1,
+        "total_quantity": 1
+      },
+      "notes": "",
+      "payment_status": "Pending",
+      "payment_method": null,
+      "status": "DRAFT",
+      "created_at": "2026-02-19T10:48:14.241596",
+      "updated_at": "2026-02-19T10:48:14.241599"
+    },
+    {
+      "id": 4,
+      "invoice_number": "INV-2026-1003",
+      "date": "2026-02-19",
+      "due_date": null,
+      "time": "10:49:56",
+      "customer_id": 2,
+      "customer": {
+        "name": "rahul",
+        "phone": "5878451222",
+        "email": "rahul@example.com",
+        "address": "hyd",
+        "gst_number": "",
+        "state": "Telangana"
+      },
+      "items": [
+        {
+          "name": "victus",
+          "description": "",
+          "quantity": 1,
+          "unit_price": 45000.0,
+          "gst_rate": 18.0,
+          "cgst_amount": 4050.0,
+          "sgst_amount": 4050.0,
+          "total_amount": 53100.0
+        }
+      ],
+      "totals": {
+        "subtotal": 45000.0,
+        "total_cgst": 4050.0,
+        "total_sgst": 4050.0,
+        "total_gst": 8100.0,
+        "grand_total": 53100.0,
+        "total_items": 1,
+        "total_quantity": 1
+      },
+      "notes": "",
+      "payment_status": "Pending",
+      "payment_method": null,
+      "status": "DRAFT",
+      "created_at": "2026-02-19T10:49:56.811108",
+      "updated_at": "2026-02-19T10:49:56.811111"
+    },
+    {
+      "id": 5,
+      "invoice_number": "INV-2026-1004",
+      "date": "2026-02-20",
+      "due_date": null,
+      "time": "09:32:37",
+      "customer_id": 1,
+      "customer": {
+        "name": "bunny",
+        "phone": "9985784511",
+        "email": "bunnyrangu29@gmail.com",
+        "address": "hyd\n",
+        "gst_number": "",
+        "state": "Telangana"
+      },
+      "items": [
+        {
+          "name": "bunny",
+          "description": "",
+          "quantity": 1,
+          "unit_price": 800.0,
+          "gst_rate": 5.0,
+          "cgst_amount": 20.0,
+          "sgst_amount": 20.0,
+          "total_amount": 840.0
+        }
+      ],
+      "totals": {
+        "subtotal": 800.0,
+        "total_cgst": 20.0,
+        "total_sgst": 20.0,
+        "total_gst": 40.0,
+        "grand_total": 840.0,
+        "total_items": 1,
+        "total_quantity": 1
+      },
+      "notes": "thank you sir for your purchase",
+      "payment_status": "Pending",
+      "payment_method": null,
+      "status": "DRAFT",
+      "created_at": "2026-02-20T09:32:37.652384",
+      "updated_at": "2026-02-20T09:32:37.652389"
+    }
+  ],
+  "invoice_items": [
+    {
+      "id": 1,
+      "invoice_id": 1,
+      "name": "lenova ideapad slim3",
+      "description": "my i7 processor  laptop",
+      "quantity": 1,
+      "unit_price": 60000.0,
+      "gst_rate": 5.0,
+      "cgst_amount": 1500.0,
+      "sgst_amount": 1500.0,
+      "total_amount": 63000.0
+    },
+    {
+      "id": 2,
+      "invoice_id": 2,
+      "name": "hp ",
+      "description": "",
+      "quantity": 1,
+      "unit_price": 58000.0,
+      "gst_rate": 12.0,
+      "cgst_amount": 3480.0,
+      "sgst_amount": 3480.0,
+      "total_amount": 64960.0
+    },
+    {
+      "id": 3,
+      "invoice_id": 3,
+      "name": "dell",
+      "description": "",
+      "quantity": 1,
+      "unit_price": 64000.0,
+      "gst_rate": 5.0,
+      "cgst_amount": 1600.0,
+      "sgst_amount": 1600.0,
+      "total_amount": 67200.0
+    },
+    {
+      "id": 4,
+      "invoice_id": 4,
+      "name": "victus",
+      "description": "",
+      "quantity": 1,
+      "unit_price": 45000.0,
+      "gst_rate": 18.0,
+      "cgst_amount": 4050.0,
+      "sgst_amount": 4050.0,
+      "total_amount": 53100.0
+    },
+    {
+      "id": 5,
+      "invoice_id": 5,
+      "name": "bunny",
+      "description": "",
+      "quantity": 1,
+      "unit_price": 800.0,
+      "gst_rate": 5.0,
+      "cgst_amount": 20.0,
+      "sgst_amount": 20.0,
+      "total_amount": 840.0
+    }
+  ],
+  "payments": [],
+  "users": [],
+  "audit_logs": [
+    {
+      "id": 1,
+      "timestamp": "2026-02-19T14:53:35.895794",
+      "user": "bunny",
+      "action": "CREATE_INVOICE",
+      "entity_type": "invoice",
+      "entity_id": "INV-2025-1000",
+      "details": "{\"amount\": 50000, \"customer\": \"Test Customer\"}",
+      "ip_address": "192.168.1.1",
+      "status": "success"
+    },
+    {
+      "id": 2,
+      "timestamp": "2026-02-19T14:53:35.951432",
+      "user": "bunny",
+      "action": "LOGIN",
+      "entity_type": null,
+      "entity_id": null,
+      "details": null,
+      "ip_address": "192.168.1.1",
+      "status": "success"
+    },
+    {
+      "id": 3,
+      "timestamp": "2026-02-20T09:27:39.641085",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoices",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 4,
+      "timestamp": "2026-02-20T09:33:00.894037",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoices",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 5,
+      "timestamp": "2026-02-20T09:33:03.044398",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoice",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 6,
+      "timestamp": "2026-02-20T09:33:05.211833",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoice",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 7,
+      "timestamp": "2026-02-20T09:33:07.396964",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoice",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 8,
+      "timestamp": "2026-02-20T09:33:09.541095",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoice",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 9,
+      "timestamp": "2026-02-20T09:33:11.678358",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoice",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    },
+    {
+      "id": 10,
+      "timestamp": "2026-02-21T14:18:26.223928",
+      "user": "system",
+      "action": "VIEW",
+      "entity_type": "invoices",
+      "entity_id": null,
+      "details": null,
+      "ip_address": "127.0.0.1",
+      "status": "success"
+    }
+  ],
+  "recurring_invoices": [
+    {
+      "id": 1,
+      "template_name": "Monthly Rent - ABC Corp",
+      "customer_id": 3,
+      "frequency": "monthly",
+      "interval": 1,
+      "start_date": "2025-02-01",
+      "end_date": "2025-12-31",
+      "next_invoice_date": "2025-02-01",
+      "invoice_template": "{\"customer\": {\"name\": \"ABC Corporation\", \"phone\": \"9876543210\", \"email\": \"abc@example.com\", \"address\": \"Mumbai\"}, \"items\": [{\"name\": \"Office Rent\", \"price\": 50000, \"quantity\": 1, \"gst_rate\": 18}], \"notes\": \"\"}",
+      "status": "completed",
+      "auto_send": "true",
+      "invoices_generated": 0,
+      "last_generated": null,
+      "created_at": "2026-02-19T15:09:45.958106"
+    },
+    {
+      "id": 2,
+      "template_name": "Monthly Rent - ABC Corp",
+      "customer_id": 3,
+      "frequency": "monthly",
+      "interval": 1,
+      "start_date": "2025-02-01",
+      "end_date": "2025-12-31",
+      "next_invoice_date": "2025-02-01",
+      "invoice_template": "{\"customer\": {\"name\": \"ABC Corporation\", \"phone\": \"9876543210\", \"email\": \"abc@example.com\", \"address\": \"Mumbai\"}, \"items\": [{\"name\": \"Office Rent\", \"price\": 50000, \"quantity\": 1, \"gst_rate\": 18}], \"notes\": \"\"}",
+      "status": "completed",
+      "auto_send": "true",
+      "invoices_generated": 0,
+      "last_generated": null,
+      "created_at": "2026-02-20T09:21:07.369827"
+    },
+    {
+      "id": 3,
+      "template_name": "daily rent of  milk",
+      "customer_id": 1,
+      "frequency": "daily",
+      "interval": 1,
+      "start_date": "2026-02-20",
+      "end_date": "2026-02-20",
+      "next_invoice_date": "2026-02-21",
+      "invoice_template": "{\"customer\": {\"name\": \"bunny\", \"phone\": \"9985784511\", \"email\": \"bunnyrangu29@gmail.com\", \"address\": \"hyd\\n\"}, \"items\": [{\"name\": \"bunny\", \"price\": 800.0, \"quantity\": 1, \"gst_rate\": 5}], \"notes\": \"thank you sir for your purchase\"}",
+      "status": "completed",
+      "auto_send": "true",
+      "invoices_generated": 1,
+      "last_generated": "2026-02-20T09:32:37.594298",
+      "created_at": "2026-02-20T09:32:09.710327"
+    }
+  ]
+}

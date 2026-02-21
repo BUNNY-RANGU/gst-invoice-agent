@@ -21,6 +21,8 @@ from app.agents.notification_agent import NotificationAgent
 from app.agents.audit_agent import AuditAgent
 from fastapi import Request
 from app.agents.recurring_agent import RecurringAgent
+from app.agents.backup_agent import BackupAgent
+import os
 import sys
 import os
 from fastapi.responses import Response
@@ -63,6 +65,8 @@ bulk_ops = BulkOperations()
 search_agent = SearchAgent()
 # Initialize Auth Agent
 auth_agent = AuthAgent()
+# Initialize Backup Agent
+backup_agent = BackupAgent()
 security = HTTPBearer()
 # Add CORS middleware
 app.add_middleware(
@@ -783,6 +787,138 @@ async def get_gst_rate_breakdown():
         **breakdown
     }
      
+
+# ============================================================================
+# BACKUP & RESTORE ENDPOINTS
+# ============================================================================
+
+@app.post("/api/backup/create", tags=["Backup & Restore"])
+async def create_database_backup(backup_name: str = None):
+    """
+    Create complete database backup
+    
+    - Exports all data to JSON file
+    - backup_name: Optional custom name for backup
+    """
+    result = backup_agent.create_backup(backup_name=backup_name)
+    
+    if not result['success']:
+        raise HTTPException(status_code=500, detail=result['error'])
+    
+    return result
+
+
+@app.get("/api/backup/list", tags=["Backup & Restore"])
+async def list_all_backups():
+    """
+    List all available backups
+    
+    - Returns list of backup files with metadata
+    """
+    backups = backup_agent.list_backups()
+    
+    return {
+        "success": True,
+        "count": len(backups),
+        "backups": backups
+    }
+
+
+@app.get("/api/backup/info/{filename}", tags=["Backup & Restore"])
+async def get_backup_information(filename: str):
+    """
+    Get detailed information about a backup
+    
+    - Returns backup metadata and record counts
+    """
+    info = backup_agent.get_backup_info(filename)
+    
+    if not info['success']:
+        raise HTTPException(status_code=404, detail=info['error'])
+    
+    return info
+
+
+@app.get("/api/backup/download/{filename}", tags=["Backup & Restore"])
+async def download_backup_file(filename: str):
+    """
+    Download backup file
+    
+    - Returns backup JSON file for download
+    """
+    filepath = os.path.join(backup_agent.BACKUP_DIR, filename)
+    
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Backup file not found")
+    
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}"
+        }
+    )
+
+
+@app.post("/api/backup/restore/{filename}", tags=["Backup & Restore"])
+async def restore_from_backup(
+    filename: str,
+    restore_users: bool = False
+):
+    """
+    Restore database from backup
+    
+    - filename: Backup file to restore from
+    - restore_users: Whether to restore user accounts (default: False)
+    - WARNING: This will add data from backup to current database
+    """
+    result = backup_agent.restore_backup(filename, restore_users=restore_users)
+    
+    if not result['success']:
+        raise HTTPException(status_code=500, detail=result['error'])
+    
+    return result
+
+
+@app.get("/api/backup/export-csv", tags=["Backup & Restore"])
+async def export_data_to_csv():
+    """
+    Export all data to CSV files
+    
+    - Creates CSV files for all tables
+    - Returns download link
+    """
+    result = backup_agent.export_to_csv()
+    
+    if not result['success']:
+        raise HTTPException(status_code=500, detail=result['error'])
+    
+    return result
+
+
+@app.delete("/api/backup/delete/{filename}", tags=["Backup & Restore"])
+async def delete_backup_file(filename: str):
+    """
+    Delete a backup file
+    
+    - Permanently removes backup file
+    """
+    filepath = os.path.join(backup_agent.BACKUP_DIR, filename)
+    
+    if not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Backup file not found")
+    
+    try:
+        os.remove(filepath)
+        return {
+            "success": True,
+            "message": f"Backup {filename} deleted"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
      # ============================================================================
 # RECURRING INVOICE ENDPOINTS
