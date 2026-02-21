@@ -22,11 +22,12 @@ from app.agents.audit_agent import AuditAgent
 from fastapi import Request
 from app.agents.recurring_agent import RecurringAgent
 from app.agents.backup_agent import BackupAgent
+from app.agents.security_agent import SecurityAgent
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
-import os
+import json
 from fastapi.responses import Response
-import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from app.agents.pdf_generator import PDFGenerator
 from app.agents.excel_exporter import ExcelExporter
@@ -65,6 +66,8 @@ bulk_ops = BulkOperations()
 search_agent = SearchAgent()
 # Initialize Auth Agent
 auth_agent = AuthAgent()
+# Initialize Security Agent
+security_agent = SecurityAgent()
 # Initialize Backup Agent
 backup_agent = BackupAgent()
 security = HTTPBearer()
@@ -76,7 +79,14 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
 )
-
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ============================================================================
 # AUTO-LOGGING MIDDLEWARE
 # ============================================================================
@@ -225,7 +235,60 @@ class UserLoginRequest(BaseModel):
     """Request model for user login"""
     username: str
     password: str
-
+# Rate limiting middleware
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """Apply rate limiting to all requests"""
+    
+    # Get client IP
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Determine rate limit type based on path
+    path = request.url.path
+    limit_type = "default"
+    
+    if "/auth/" in path:
+        limit_type = "auth"
+    elif "/search/" in path:
+        limit_type = "search"
+    elif "/export/" in path or "/backup/" in path:
+        limit_type = "export"
+    elif "/email" in path or "/notifications/" in path:
+        limit_type = "email"
+    
+    # Check rate limit
+    rate_check = security_agent.check_rate_limit(client_ip, limit_type)
+    
+    if not rate_check['allowed']:
+        return Response(
+            content=json.dumps({
+                "error": "Rate limit exceeded",
+                "message": rate_check['reason'],
+                "retry_after": rate_check['retry_after']
+            }),
+            status_code=429,
+            media_type="application/json",
+            headers={
+                "Retry-After": str(rate_check['retry_after']),
+                "X-RateLimit-Limit": str(rate_check.get('limit', 0)),
+                "X-RateLimit-Remaining": "0"
+            }
+        )
+    
+    # Add rate limit headers to response
+    response = await call_next(request)
+    
+    # Add security headers
+    security_headers = security_agent.get_security_headers()
+    for header, value in security_headers.items():
+        response.headers[header] = value
+    
+    # Add rate limit info headers
+    response.headers["X-RateLimit-Limit"] = str(rate_check.get('limit', 0))
+    response.headers["X-RateLimit-Remaining"] = str(rate_check.get('remaining', 0))
+    response.headers["X-RateLimit-Reset"] = str(rate_check.get('reset_at', 0))
+    
+    return response
 
 # ============================================================================
 # API ENDPOINTS
@@ -787,6 +850,65 @@ async def get_gst_rate_breakdown():
         **breakdown
     }
      
+# ============================================================================
+# SECURITY & RATE LIMITING ENDPOINTS
+# ============================================================================
+
+@app.get("/api/security/stats", tags=["Security"])
+async def get_security_statistics():
+    """
+    Get rate limiting statistics
+    
+    - Returns current rate limit stats
+    """
+    stats = security_agent.get_rate_limit_stats()
+    
+    return {
+        "success": True,
+        "stats": stats
+    }
+
+
+@app.post("/api/security/block-ip", tags=["Security"])
+async def block_ip_address(
+    ip_address: str,
+    duration_hours: int = 24
+):
+    """
+    Block an IP address
+    
+    - Requires admin privileges in production
+    - duration_hours: How long to block (default 24)
+    """
+    result = security_agent.block_ip(ip_address, duration_hours)
+    
+    return result
+
+
+@app.post("/api/security/unblock-ip", tags=["Security"])
+async def unblock_ip_address(ip_address: str):
+    """
+    Unblock an IP address
+    
+    - Requires admin privileges in production
+    """
+    result = security_agent.unblock_ip(ip_address)
+    
+    return result
+
+
+@app.get("/api/security/rate-limits", tags=["Security"])
+async def get_rate_limit_config():
+    """
+    Get current rate limit configuration
+    
+    - Returns all rate limit rules
+    """
+    return {
+        "success": True,
+        "rate_limits": security_agent.RATE_LIMITS
+    }
+
 
 # ============================================================================
 # BACKUP & RESTORE ENDPOINTS
