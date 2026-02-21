@@ -26,7 +26,7 @@ class InvoiceAgentDB:
     def __init__(self):
         """Initialize invoice agent"""
         self.validator = InvoiceValidator()
-        self.calculator = GSTCalculator(base_price=0, gst_rate=0)
+        self.calculator = GSTCalculator()
         self.db_ops = DatabaseOperations()
         init_database()
     
@@ -68,26 +68,24 @@ class InvoiceAgentDB:
         # Step 3: Calculate GST for each item
         calculated_items = []
         for item in items:
-            calculator = GSTCalculator(
-                base_price=item['price'],
-                gst_rate=item['gst_rate'],
-                quantity=item['quantity']
-            )
-            calc = calculator.calculate()
+            calculator = GSTCalculator()
+            calc_items = [{'name': item['name'], 'price': item['price'], 'quantity': item['quantity'], 'gst_rate': item['gst_rate']}]
+            calc = calculator.calculate(calc_items)
+            calc_item = calc['items'][0]
             calculated_items.append({
                 'name': item['name'],
                 'description': item.get('description', ''),
                 'hsn_code': item.get('hsn_code', ''),
-                'quantity': calc['quantity'],
-                'unit_price': calc['base_price_per_unit'],
-                'subtotal': calc['total_base_amount'],
-                'gst_rate': calc['gst_rate'],
-                'cgst_rate': calc['gst_rate'] / 2,
-                'sgst_rate': calc['gst_rate'] / 2,
-                'cgst_amount': calc['cgst'],
-                'sgst_amount': calc['sgst'],
-                'total_gst': calc['total_gst'],
-                'total_amount': calc['final_price']
+                'quantity': calc_item['quantity'],
+                'unit_price': calc_item['price'],
+                'subtotal': calc_item['subtotal'],
+                'gst_rate': calc_item['gst_rate'],
+                'cgst_rate': calc_item['gst_rate'] / 2,
+                'sgst_rate': calc_item['gst_rate'] / 2,
+                'cgst_amount': calc_item['cgst'],
+                'sgst_amount': calc_item['sgst'],
+                'total_gst': calc_item['total_gst'],
+                'total_amount': calc_item['total']
             })
             
         # Step 4: Calculate overall totals
