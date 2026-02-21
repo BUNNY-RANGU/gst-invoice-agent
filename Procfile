@@ -1,3 +1,1 @@
-cat > Procfile << 'EOF'
 web: uvicorn app.api.routes:app --host 0.0.0.0 --port $PORT
-EOF

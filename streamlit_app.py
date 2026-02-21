@@ -2016,7 +2016,7 @@ elif page == "ℹ️ About":
     - **API Docs:** Swagger/OpenAPI
     
     ### 📊 Progress
-    **Day 7 of 30** - Frontend Complete! 🎉
+ - Frontend Complete! 🎉
     
     ### 🔗 Links
     - **API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
@@ -2130,7 +2130,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666; padding: 1rem;'>
-        <p>GST Invoice Agent v1.0 | Built by Bunny Rangu | Day 7/30 Complete ✅</p>
+        <p>GST Invoice Agent v1.0 | Built by Bunny_Rangu</p>
     </div>
     """,
     unsafe_allow_html=True
