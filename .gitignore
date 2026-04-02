@@ -1,5 +1,4 @@
-cat > .gitignore << 'EOF'
-# Python
+# 🐍 Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,32 +8,55 @@ venv/
 env/
 ENV/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# 📦 Node.js (Vite Build)
+node_modules/
+dist/
+dist-ssr/
+*.local
 
-# Environment
+# 📁 Database
+# Keep the production database file name but ignore local dynamic copies
+# (Uncomment the line below if you want to push an empty DB)
+# *.db
+# *.sqlite
+# *.sqlite3
+
+# 🔑 Secrets & Environment
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# IDE
+# 💻 IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Backups
+# 📦 Backups
 backups/
 
-# PDFs
+# 📄 Invoices & Exports
 invoices/*.pdf
+exports/*.xlsx
+exports/*.csv
 
-# Testing
+# 🧪 Testing
 .pytest_cache/
 htmlcov/
 .coverage
+.tox/
+.nox/
+.hypothesis/
 
-# OS
+# 🍎 OS
 .DS_Store
 Thumbs.db
-EOF
+
+# 🧹 Redundant Files
+cleanup.bat
+.qoder/
+.ralphy/
+.sfdx/
+netlify_build.sh
