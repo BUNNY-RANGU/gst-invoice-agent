@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GST Invoice Agent - Enterprise Portal</title>
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="AI-powered GST invoice automation for Indian businesses. Built by Bunny Rangu.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .heading-font { font-family: 'Outfit', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .dark-glass { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(31, 41, 55, 0.5); }
+        .animate-gradient { background-size: 200% 200%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        .sidebar-item-active { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .invoice-card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .invoice-card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1); }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: '#2563eb', 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
+                        slate: { 800: '#1e293b', 900: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-slate-800 custom-scrollbar antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- CONFIG ---
+        // Dynamically detect API URL or fallback to localhost
+        const getApiUrl = () => {
+            const stored = localStorage.getItem('API_URL');
+            if (stored) return stored;
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:8000';
+            }
+            // Add your production Render/Railway URL here
+            return 'https://gst-invoice-api.onrender.com'; 
+        };
+
+        const API_URL = getApiUrl();
+
+        // --- COMPONENTS ---
+
+        const LucideIcon = ({ name, size = 20, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (iconRef.current && window.lucide) {
+                    window.lucide.createIcons({
+                        attrs: {
+                            class: className,
+                            'stroke-width': 2,
+                            size: size
+                        },
+                        nameList: [name]
+                    });
+                }
+            }, [name, size, className]);
+            return <i data-lucide={name} ref={iconRef} className={className}></i>;
+        };
+
+        const StatCard = ({ title, value, icon, color, trend }) => (
+            <div class="glass p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div>
+                    <p class="text-slate-500 text-sm font-medium mb-1">{title}</p>
+                    <h3 class="text-2xl font-bold text-slate-900">{value}</h3>
+                    {trend && (
+                        <p class={`text-xs mt-2 font-semibold ${trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {trend} <span class="text-slate-400 font-normal">vs last month</span>
+                        </p>
+                    )}
+                </div>
+                <div class={`p-4 rounded-xl ${color} bg-opacity-10 text-opacity-100 flex items-center justify-center`}>
+                    <LucideIcon name={icon} className={`text-${color.split('-')[1]}-600`} />
+                </div>
+            </div>
+        );
+
+        const SidebarItem = ({ icon, label, isActive, onClick }) => (
+            <button 
+                onClick={onClick}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive ? 'sidebar-item-active' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
+            >
+                <LucideIcon name={icon} className={`${isActive ? 'text-white' : 'group-hover:text-primary-600'}`} />
+                <span className="font-medium text-sm">{label}</span>
+            </button>
+        );
+
+        // --- PAGES ---
+
+        const Dashboard = () => {
+            const [stats, setStats] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const fetchStats = async () => {
+                    try {
+                        const res = await fetch(`${API_URL}/api/stats`);
+                        const data = await res.json();
+                        if (data.success) setStats(data.stats);
+                    } catch (e) {
+                        console.error('API Error:', e);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                fetchStats();
+
+                const ctx = document.getElementById('revenueChart');
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'Revenue',
+                                data: [65000, 59000, 80000, 81000, 56000, 95000],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5] } }, x: { grid: { display: false } } }
+                        }
+                    });
+                }
+            }, []);
+
+            return (
+                <div class="space-y-8 animate-in fade-in duration-500">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-3xl font-bold text-slate-900">Dashboard</h2>
+                            <p class="text-slate-500 mt-1">Real-time insights from your GST Engine.</p>
+                        </div>
+                        <div class="flex space-x-3">
+                            <button class="glass px-4 py-2 rounded-xl text-sm font-semibold flex items-center space-x-2 hover:bg-white transition-colors">
+                                <LucideIcon name="download" size={16} />
+                                <span>Export Stats</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <StatCard title="Total Revenue" value={stats ? `₹${stats.total_revenue.toLocaleString()}` : "₹0"} icon="indian-rupee" color="bg-blue-500" trend="+12.5%" />
+                        <StatCard title="Total Invoices" value={stats ? stats.total_invoices : "0"} icon="file-text" color="bg-indigo-500" trend="+6.2%" />
+                        <StatCard title="GST Collected" value={stats ? `₹${stats.total_gst_collected.toLocaleString()}` : "₹0"} icon="percent" color="bg-emerald-500" trend="+15.1%" />
+                        <StatCard title="Avg. Ticket" value={stats ? `₹${stats.average_invoice_value.toLocaleString()}` : "₹0"} icon="bar-chart-2" color="bg-orange-500" trend="-2.4%" />
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 glass p-8 rounded-3xl shadow-sm">
+                            <h3 class="text-xl font-bold mb-6 flex items-center space-x-2">
+                                <LucideIcon name="trending-up" />
+                                <span>Revenue Growth</span>
+                            </h3>
+                            <canvas id="revenueChart" height="150"></canvas>
+                        </div>
+                        <div class="glass p-8 rounded-3xl shadow-sm">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold">Top Customers</h3>
+                                <LucideIcon name="users" className="text-primary-600" />
+                            </div>
+                            <div class="space-y-6">
+                                {(stats?.top_customers || [
+                                    { name: 'Example Customer', total_spent: 0 }
+                                ]).map((c, i) => (
+                                    <div key={i} class="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl transition-colors">
+                                        <div class="flex items-center space-x-3">
+                                            <div class={`w-10 h-10 rounded-full flex items-center justify-center text-lg bg-primary-100 text-primary-600 font-bold`}>{c.name[0]}</div>
+                                            <div>
+                                                <p class="font-semibold text-slate-800">{c.name}</p>
+                                                <p class="text-xs text-slate-400">Regular Client</p>
+                                            </div>
+                                        </div>
+                                        <span class="font-bold text-slate-900">₹{c.total_spent.toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CreateInvoice = () => {
+            const [customer, setCustomer] = useState({ name: '', phone: '', email: '', address: '', gst: '' });
+            const [items, setItems] = useState([{ id: Date.now(), name: '', price: 0, qty: 1, gst: 18 }]);
+            const [loading, setLoading] = useState(false);
+            
+            const addItem = () => setItems([...items, { id: Date.now(), name: '', price: 0, qty: 1, gst: 18 }]);
+            const removeItem = (id) => setItems(items.filter(item => item.id !== id));
+            const updateItem = (id, field, value) => {
+                setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+            };
+
+            const totals = useMemo(() => {
+                let subtotal = 0;
+                let gst = 0;
+                items.forEach(item => {
+                    const line = item.price * item.qty;
+                    subtotal += line;
+                    gst += (line * item.gst) / 100;
+                });
+                return { subtotal, gst, grand: subtotal + gst };
+            }, [items]);
+
+            const handleSubmit = async () => {
+                if (!customer.name || !customer.phone) return alert('Fill customer details');
+                setLoading(true);
+                try {
+                    const res = await fetch(`${API_URL}/api/invoice/create`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            customer: { ...customer, gst_number: customer.gst },
+                            items: items.map(i => ({ ...i, gst_rate: i.gst })),
+                            notes: ""
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('Invoice Created! #' + data.invoice.invoice_number);
+                        location.reload();
+                    }
+                } catch (e) {
+                    alert('Submission Error: API Offline?');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div class="max-w-5xl mx-auto animate-in slide-in-from-bottom-5 duration-500 pb-20">
+                    <div class="flex items-center justify-between mb-8">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-primary-200">
+                                <LucideIcon name="plus" size={24} />
+                            </div>
+                            <div>
+                                <h2 class="text-3xl font-bold text-slate-900">New Invoice</h2>
+                                <p class="text-slate-500">Professional GST invoices in seconds.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-2 space-y-8">
+                            {/* Customer Section */}
+                            <div class="glass p-8 rounded-3xl shadow-sm border border-gray-100">
+                                <h3 class="text-xl font-bold mb-6 flex items-center space-x-2"><LucideIcon name="user" className="text-primary-600" /><span>Customer Details</span></h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name *</label><input type="text" placeholder="e.g. Rahul Verma" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary-500" value={customer.name} onChange={e => setCustomer({...customer, name: e.target.value})} /></div>
+                                    <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Phone Number *</label><input type="tel" placeholder="10-digit number" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary-500" value={customer.phone} onChange={e => setCustomer({...customer, phone: e.target.value})} /></div>
+                                    <div class="space-y-2 md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">GSTin Number (Optional)</label><input type="text" placeholder="15-digit GSTIN" class="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary-500" value={customer.gst} onChange={e => setCustomer({...customer, gst: e.target.value})} /></div>
+                                </div>
+                            </div>
+
+                            {/* Items Section */}
+                            <div class="glass p-8 rounded-3xl shadow-sm border border-gray-100">
+                                <div class="flex items-center justify-between mb-6">
+                                    <h3 class="text-xl font-bold flex items-center space-x-2"><LucideIcon name="package" className="text-primary-600" /><span>Items</span></h3>
+                                    <button onClick={addItem} class="text-primary-600 flex items-center space-x-2 text-sm font-bold hover:bg-primary-50 px-4 py-2 rounded-xl transition-all"><LucideIcon name="plus-circle" size={18} /><span>Add Item</span></button>
+                                </div>
+                                <div class="space-y-4">
+                                    {items.map((item, idx) => (
+                                        <div key={item.id} class="p-6 bg-slate-50 rounded-2xl border border-slate-100 animate-in zoom-in-95 duration-200 flex gap-4">
+                                            <input type="text" placeholder="Product name" class="flex-grow px-4 py-2 rounded-lg ring-1 ring-slate-200" value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} />
+                                            <input type="number" placeholder="Price" class="w-24 px-4 py-2 rounded-lg ring-1 ring-slate-200" value={item.price} onChange={e => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)} />
+                                            <input type="number" placeholder="Qty" class="w-20 px-4 py-2 rounded-lg ring-1 ring-slate-200" value={item.qty} onChange={e => updateItem(item.id, 'qty', parseInt(e.target.value) || 0)} />
+                                            <select class="w-24 px-4 py-2 rounded-lg ring-1 ring-slate-200" value={item.gst} onChange={e => updateItem(item.id, 'gst', parseInt(e.target.value))}>{[0, 5, 12, 18, 28].map(v => <option key={v} value={v}>{v}%</option>)}</select>
+                                            {items.length > 1 && <button onClick={() => removeItem(item.id)} class="text-rose-400 hover:text-rose-600"><LucideIcon name="trash-2" size={20} /></button>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-8">
+                            <div class="glass p-8 rounded-3xl shadow-sm border border-gray-100 sticky top-8">
+                                <h3 class="text-xl font-bold mb-6">Summary</h3>
+                                <div class="space-y-4 mb-8">
+                                    <div class="flex justify-between text-slate-500"><span>Subtotal</span><span class="font-medium">₹{totals.subtotal.toLocaleString()}</span></div>
+                                    <div class="flex justify-between text-slate-500"><span>Total GST</span><span class="font-medium">₹{totals.gst.toLocaleString()}</span></div>
+                                    <div class="h-px bg-slate-100 my-4"></div>
+                                    <div class="flex justify-between items-center"><span class="text-slate-900 font-bold">Grand Total</span><span class="text-2xl font-black text-primary-600">₹{totals.grand.toLocaleString()}</span></div>
+                                </div>
+                                <button onClick={handleSubmit} disabled={loading} class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center space-x-2">
+                                    {loading ? <span>Processing...</span> : <React.Fragment><LucideIcon name="zap" className="fill-current" /><span>Generate Invoice</span></React.Fragment>}
+                                </button>
+                                <p class="text-[10px] text-center text-slate-400 mt-4 uppercase font-bold tracking-widest leading-loose">API Endpoint: <br/> {API_URL}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP ---
+
+        const App = () => {
+            const [activePage, setActivePage] = useState('📊 Dashboard');
+            const [isSidebarOpen, setSidebarOpen] = useState(true);
+
+            return (
+                <div class="min-h-screen flex bg-[#f8fafc]">
+                    <aside className={`fixed inset-y-0 left-0 z-50 w-72 transform bg-white border-r border-slate-200 transition-transform lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div class="h-full flex flex-col p-6">
+                            <div class="flex items-center space-x-3 mb-10 px-2"><div class="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-primary-200">🧾</div><h1 class="text-xl font-black text-slate-900 tracking-tight">GST AGENT</h1></div>
+                            <nav class="flex-grow space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+                                <SidebarItem icon="layout-dashboard" label="Dashboard" isActive={activePage === '📊 Dashboard'} onClick={() => setActivePage('📊 Dashboard')} />
+                                <SidebarItem icon="plus-square" label="New Invoice" isActive={activePage === '➕ Create Invoice'} onClick={() => setActivePage('➕ Create Invoice')} />
+                                <SidebarItem icon="files" label="History" isActive={activePage === '📋 History'} onClick={() => setActivePage('📋 History')} />
+                            </nav>
+                            <div class="mt-auto pt-6 border-t border-slate-100">
+                                <div class="glass p-4 rounded-2xl flex items-center space-x-3">
+                                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold">B</div>
+                                    <div class="flex-grow"><p class="text-sm font-bold text-slate-900 leading-none">Bunny Rangu</p><p class="text-[10px] text-slate-400 uppercase font-black tracking-tighter">Administrator</p></div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
+                    <main class="flex-grow relative h-screen overflow-y-auto custom-scrollbar">
+                        <header class="sticky top-0 z-40 bg-white bg-opacity-80 backdrop-blur-md px-8 py-4 border-b border-slate-100 flex items-center justify-between">
+                            <button onClick={() => setSidebarOpen(!isSidebarOpen)} class="p-2 hover:bg-slate-100 rounded-lg"><LucideIcon name="menu" /></button>
+                            <div class="flex items-center space-x-4">
+                                <div class="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 cursor-pointer relative"><LucideIcon name="bell" size={20} /><span class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span></div>
+                                <div class="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-400 cursor-pointer"><LucideIcon name="settings" size={20} /></div>
+                            </div>
+                        </header>
+                        <div class="p-8">
+                            {activePage === '📊 Dashboard' ? <Dashboard /> : activePage === '➕ Create Invoice' ? <CreateInvoice /> : (
+                                <div class="flex flex-col items-center justify-center h-96 text-slate-400">
+                                    <LucideIcon name="layers" size={64} className="mb-4 opacity-20" />
+                                    <h3 class="font-bold text-xl">Module Coming Soon</h3>
+                                    <p>Integrating Database persistence...</p>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

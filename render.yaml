@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: gst-invoice-api
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        value: sqlite:///gst_invoices.db
+    # Scaling to a free instance by default
+    plan: free
+
+  - type: web
+    name: gst-invoice-streamlit
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "streamlit run streamlit_app.py --server.port $PORT --server.address 0.0.0.0"
+    plan: free

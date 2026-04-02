@@ -2043,7 +2043,7 @@ elif page == "ℹ️ About":
     if invoice_num:
         try:
             # Get payment history
-            payment_response = requests.get(f"{API_BASE_URL}/api/invoice/{invoice_num}/payments")
+            payment_response = requests.get(f"{API_URL}/api/invoice/{invoice_num}/payments")
             
             if payment_response.status_code == 200:
                 payment_data = payment_response.json()
@@ -2082,7 +2082,7 @@ elif page == "ℹ️ About":
                         else:
                             try:
                                 payment_result = requests.post(
-                                    f"{API_BASE_URL}/api/invoice/{invoice_num}/payment",
+                                    f"{API_URL}/api/invoice/{invoice_num}/payment",
                                     params={
                                         "amount": payment_amount,
                                         "payment_method": payment_method,

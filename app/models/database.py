@@ -152,7 +152,8 @@ class AuditLog(Base):
 
 
 # Database connection setup
-DATABASE_URL = "sqlite:///./gst_invoices.db"
+import os
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gst_invoices.db")
 
 class User(Base):
     """User model for authentication"""
