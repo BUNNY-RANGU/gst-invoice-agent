@@ -79,13 +79,13 @@ streamlit run streamlit_app.py
 ## 📸 Screenshots
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
+<img width="1919" height="885" alt="image" src="https://github.com/user-attachments/assets/2aa5f4bb-b167-4f5d-9958-94c3cc493364" />
 
 ### Invoice PDF
-![Invoice](screenshots/invoice.png)
+<img width="1045" height="838" alt="image" src="https://github.com/user-attachments/assets/0a6fded6-e5fa-4caa-a98b-f18ac5da752d" />
 
 ### Analytics
-![Analytics](screenshots/analytics.png)
+<img width="1587" height="871" alt="image" src="https://github.com/user-attachments/assets/80320b7f-eeb1-402e-bf8f-7b170095d96e" />
 
 ---
 
